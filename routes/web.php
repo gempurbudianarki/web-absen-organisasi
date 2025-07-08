@@ -10,13 +10,14 @@ use App\Http\Controllers\EmailLogController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Admin\LearnerAttendanceController;
 use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\Admin\DevisiController;
+use App\Http\Controllers\PJ\KegiatanController; // <-- 1. Tambahkan impor ini
 
 /*
 |--------------------------------------------------------------------------
 | Public / Guest Routes
 |--------------------------------------------------------------------------
 */
-// Welcome page — only for guests (not logged in)
 Route::get('/', function () {
     return view('welcome');
 })->middleware('guest');
@@ -24,135 +25,79 @@ Route::get('/', function () {
 
 /*
 |--------------------------------------------------------------------------
-| Authenticated Redirect Based on Role
-|--------------------------------------------------------------------------
-*/
-Route::get('/dashboard', function () {
-    $user = auth()->user();
-
-    return match (true) {
-        $user->hasRole('admin') => redirect('/admin/dashboard'),
-        $user->hasRole('employee') => redirect('/employee/dashboard'),
-        $user->hasRole('learner') => redirect('/learner/dashboard'),
-        default => abort(403),
-    };
-// })->middleware(['auth'])->name('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
-
-
-/*
-|--------------------------------------------------------------------------
-| Authenticated User Routes (All Roles)
+| Authenticated Routes
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'verified'])->group(function () {
-// Route::middleware(['auth'])->group(function () {
 
-    // Show registration form
-    Route::get('/register-user', [RegisterController::class, 'showAdminRegisterForm'])->name('admin.register.form');
+    Route::get('/dashboard', function () {
+        $user = auth()->user();
+        if ($user->hasRole('admin')) { return redirect()->route('admin.dashboard'); }
+        if ($user->hasRole('pj')) { return redirect()->route('pj.kegiatan.index'); } // Diarahkan ke daftar kegiatan
+        if ($user->hasRole('employee')) { return redirect()->route('employee.dashboard'); }
+        if ($user->hasRole('anggota') || $user->hasRole('learner')) { return redirect()->route('learner.dashboard'); }
+        return abort(403);
+    })->name('dashboard');
 
-    // Handle registration and OTP
-    Route::post('/register-user', [RegisterController::class, 'registerByAdmin'])->name('admin.register.user');
-    Route::get('/verify-otp', [RegisterController::class, 'showOtpForm'])->name('admin.otp.verify.form');
-    Route::post('/verify-otp', [RegisterController::class, 'verifyOtp'])->name('admin.otp.verify.submit');
-
-    // Admin
-    Route::get('/admin/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
-    // Employee
+    // RUTE-RUTE YANG BERLAKU UNTUK BANYAK ROLE
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    
+    // Employee & Learner Dashboards
     Route::get('/employee/dashboard', [EmployeeController::class, 'index'])->name('employee.dashboard');
-    // Learner
     Route::get('/learner/dashboard', [LearnerController::class, 'index'])->name('learner.dashboard');
 
-    // User Management
+    // --- GRUP KHUSUS ADMIN ---
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
+        
+        Route::resource('devisi', DevisiController::class);
+        
+        Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
+        Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+        Route::delete('/profile/delete', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+        Route::get('/register-user', [RegisterController::class, 'showAdminRegisterForm'])->name('register.form');
+        Route::post('/register-user', [RegisterController::class, 'registerByAdmin'])->name('register.user');
+    });
+    
+    // --- GRUP KHUSUS PJ ---
+    Route::prefix('pj')->name('pj.')->group(function () {
+        Route::resource('kegiatan', KegiatanController::class);
+    });
+
+    // --- GRUP UNTUK FITUR BERSAMA (DIAKSES ADMIN) ---
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
     Route::post('/users/sendmail', [UserController::class, 'sendMail'])->name('users.sendmail');
-    Route::get('/users/sendmail', fn() => redirect()->route('users.index'));
-
-    // Email Logs
     Route::get('/email-logs', [EmailLogController::class, 'index'])->name('email.logs');
-
-    // Custom Email
     Route::get('/custom-email', [UserController::class, 'customEmailForm'])->name('email.custom.form');
     Route::post('/custom-email/send', [UserController::class, 'sendCustomEmail'])->name('email.custom.send');
 
-    // Profile
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    // --- RUTE UNTUK PROSES OTP (TIDAK PERLU PREFIX) ---
+    Route::get('/verify-otp', [RegisterController::class, 'showOtpForm'])->name('admin.otp.verify.form');
+    Route::post('/verify-otp', [RegisterController::class, 'verifyOtp'])->name('admin.otp.verify.submit');
 
-    // Edit the User Profile
-    Route::get('/admin/profile/edit', [ProfileController::class, 'edit'])
-        ->middleware('auth')
-        ->name('admin.profile.edit');
-
-    Route::patch('/admin/profile/update', [ProfileController::class, 'update'])
-    ->middleware('auth')
-    ->name('admin.profile.update');
-
-    // Update password from admin profile page
-    Route::put('/admin/profile/password', [ProfileController::class, 'updatePassword'])
-        ->middleware('auth')
-        ->name('admin.profile.password');
-
-    // Delete account from admin profile page
-    Route::delete('/admin/profile/delete', [ProfileController::class, 'destroy'])
-        ->middleware('auth')
-        ->name('admin.profile.destroy');
-
+    // Fitur lain yang mungkin akan dipakai oleh banyak role
     Route::get('attendance', [LearnerAttendanceController::class, 'index'])->name('admin.attendance.index');
     Route::post('attendance/store', [LearnerAttendanceController::class, 'store'])->name('admin.attendance.store');
-    Route::post('attendance/lookup-learner', [LearnerAttendanceController::class, 'lookupLearner'])
-    ->middleware(['auth', 'verified'])
-    ->name('admin.attendance.lookup-learner');
-});
+    Route::post('attendance/lookup-learner', [LearnerAttendanceController::class, 'lookupLearner'])->name('admin.attendance.lookup-learner');
+    
+    Route::prefix('admin/announcements')->name('admin.announcements.')->group(function () {
+        Route::get('/', [AnnouncementController::class, 'index'])->name('index');
+        Route::post('/', [AnnouncementController::class, 'store'])->name('store');
+        Route::get('/send', [AnnouncementController::class, 'sendForm'])->name('sendForm');
+        Route::post('/send', [AnnouncementController::class, 'processSend'])->name('processSend');
+        Route::get('/{id}/send', [AnnouncementController::class, 'send'])->name('send');
+        Route::get('/logs', [AnnouncementController::class, 'logs'])->name('logs');
+    });
 
-Route::middleware(['auth', 'verified'])
-    ->prefix('admin/announcements')
-    ->name('admin.announcements.')
-    ->group(function () {
-
-       // List & create announcements
-    Route::get('/', [AnnouncementController::class, 'index'])->name('index');
-    Route::post('/', [AnnouncementController::class, 'store'])->name('store');
-
-    // Show send form
-    Route::get('/send', [AnnouncementController::class, 'sendForm'])->name('sendForm');
-
-    //  Process sending to selected recipients
-    Route::post('/send', [AnnouncementController::class, 'processSend'])->name('processSend');
-
-    // Send a specific announcement by ID (e.g. quick resend)
-    Route::get('/{id}/send', [AnnouncementController::class, 'send'])->name('send');
-
-    // View logs
-    Route::get('/logs', [AnnouncementController::class, 'logs'])->name('logs');
+    Route::resource('learners', LearnerController::class)->names('admin.learners');
+    Route::delete('/learners/{id}', [LearnerController::class, 'destroy'])->name('learners.destroy');
 });
 
 
-// Temporarily allow public access for testing purposes~
-Route::resource('learners', LearnerController::class)->names('admin.learners');
-    // Route::resource('employees', EmployeeController::class);
-    // Route::resource('attendance', AttendanceController::class);
-    // Route::resource('announcements', AnnouncementController::class);
-Route::delete('/learners/{id}', [LearnerController::class, 'destroy'])->name('learners.destroy');
-
-
-
-
-// // Admin-only routes for managing records
-// Route::middleware(['auth', 'role:admin'])->group(function () {
-//     Route::resource('learners', LearnerController::class)->names('admin.learners');
-//     // Add more admin-only routes here later
-// });
-
-
-/*
-|--------------------------------------------------------------------------
-| Auth Routes (Login, Register, Password, etc.)
-|--------------------------------------------------------------------------
-*/
-
-// Breeze auth routes (login, register, etc.)
 require __DIR__.'/auth.php';

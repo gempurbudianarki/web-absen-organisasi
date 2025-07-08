@@ -10,7 +10,7 @@ use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 class User extends Authenticatable implements MustVerifyEmail
-{ 
+{
     use HasFactory, Notifiable, HasRoles;
 
     /**
@@ -22,6 +22,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'name',
         'email',
         'password',
+        'devisi_id', // Kita tambahkan ini
     ];
 
     /**
@@ -45,5 +46,21 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Mendefinisikan relasi bahwa User ini milik satu Devisi.
+     */
+    public function devisi()
+    {
+        return $this->belongsTo(Devisi::class);
+    }
+
+    /**
+     * Mendefinisikan relasi jika User ini adalah PJ untuk sebuah Devisi.
+     */
+    public function devisiYangDipimpin()
+    {
+        return $this->hasOne(Devisi::class, 'pj_id');
     }
 }

@@ -63,7 +63,8 @@
               <label class="form-label fw-semibold">Role</label>
               <select name="role" class="form-select border border-secondary-subtle" required>
                   <option value="">-- Select Role --</option>
-                  <option value="learner">Learner</option>
+                  <option value="anggota">Anggota (Learner)</option>
+                  <option value="pj">PJ (Penanggung Jawab)</option> {{-- <-- PENAMBAHAN DI SINI --}}
                   <option value="employee">Employee</option>
                   <option value="admin">Admin</option>
               </select>
