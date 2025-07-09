@@ -13,11 +13,23 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // Memanggil RoleSeeder yang baru kita buat
+        $this->call(RoleSeeder::class);
 
+        // Membuat satu user admin default untuk testing
         User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+            'name' => 'Admin User',
+            'email' => 'admin@example.com',
+        ])->assignRole('admin');
+
+        // (Opsional) Membuat user PJ dan Anggota untuk testing
+        User::factory()->create([
+            'name' => 'PJ User',
+            'email' => 'pj@example.com',
+        ])->assignRole('pj');
+
+        User::factory(10)->create()->each(function ($user) {
+            $user->assignRole('anggota');
+        });
     }
 }

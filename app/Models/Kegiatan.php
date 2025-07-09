@@ -9,6 +9,11 @@ class Kegiatan extends Model
 {
     use HasFactory;
 
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
     protected $fillable = [
         'judul',
         'deskripsi',
@@ -19,6 +24,9 @@ class Kegiatan extends Model
         'devisi_id',
     ];
 
+    /**
+     * Mendefinisikan relasi bahwa Kegiatan ini milik satu Devisi.
+     */
     public function devisi()
     {
         return $this->belongsTo(Devisi::class);

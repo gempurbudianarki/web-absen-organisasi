@@ -49,53 +49,29 @@
           <i class="bi bi-speedometer2 me-2"></i><span>Dashboard</span>
         </a>
       </li>
-      
+      <li class="nav-item mb-1">
+        <a href="{{ route('admin.users.index') }}" class="menu-item nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}" data-tooltip="Manajemen User">
+          <i class="bi bi-people-fill me-2"></i><span>Manajemen User</span>
+        </a>
+      </li>
       <li class="nav-item mb-1">
           <a href="{{ route('admin.devisi.index') }}" class="menu-item nav-link {{ request()->routeIs('admin.devisi.*') ? 'active' : '' }}" data-tooltip="Manajemen Devisi">
               <i class="bi bi-diagram-3-fill me-2"></i><span>Manajemen Devisi</span>
           </a>
       </li>
       <li class="nav-item mb-1">
-          <a href="{{ route('admin.learners.index') }}" class="menu-item nav-link {{ request()->routeIs('admin.learners.*') ? 'active' : '' }}" data-tooltip="Manage Learners">
-              <i class="bi bi-people-fill me-2"></i><span>Learners</span>
+          <a href="{{ route('admin.kegiatan.index') }}" class="menu-item nav-link {{ request()->routeIs('admin.kegiatan.*') ? 'active' : '' }}" data-tooltip="Manajemen Kegiatan">
+              <i class="bi bi-calendar-event-fill me-2"></i><span>Manajemen Kegiatan</span>
           </a>
       </li>
       <li class="nav-item mb-1">
-          <a href="#" class="menu-item nav-link" data-tooltip="Manage Employees">
-              <i class="bi bi-person-badge-fill me-2"></i><span>Employees</span>
+          <a href="{{ route('admin.absensi.index') }}" class="menu-item nav-link {{ request()->routeIs('admin.absensi.*') ? 'active' : '' }}" data-tooltip="Manajemen Absensi">
+              <i class="bi bi-clipboard2-check-fill me-2"></i><span>Manajemen Absensi</span>
           </a>
       </li>
-      <li class="nav-item mb-1">
-          <a href="{{ route('admin.attendance.index') }}" class="menu-item nav-link {{ request()->routeIs('admin.attendance.*') ? 'active' : '' }}" data-tooltip="View Attendance Logs">
-              <i class="bi bi-clipboard-check-fill me-2"></i><span>Attendance</span>
-          </a>
-      </li>
-      <li class="nav-item mb-1">
-          <a class="menu-item nav-link d-flex justify-content-between align-items-center" data-bs-toggle="collapse" href="#announcementSubmenu" role="button" data-tooltip="Announcements">
-              <span><i class="bi bi-megaphone-fill me-2"></i>Announce</span>
-              <i class="bi bi-chevron-down small"></i>
-          </a>
-          <div class="collapse {{ request()->routeIs('admin.announcements.*') ? 'show' : '' }}" id="announcementSubmenu">
-              <ul class="nav flex-column ms-4">
-                  <li><a href="{{ route('admin.announcements.index') }}" class="nav-link text-white-50">Compose</a></li>
-                  <li><a href="{{ route('admin.announcements.sendForm') }}" class="nav-link text-white-50">Send</a></li>
-                  <li><a href="{{ route('admin.announcements.logs') }}" class="nav-link text-white-50">Logs</a></li>
-              </ul>
-          </div>
-      </li>
-      <li class="nav-item mb-1">
-        <a href="{{ route('users.index') }}" class="menu-item nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" data-tooltip="Registered Users">
-          <i class="bi bi-people-fill me-2"></i><span>Registered Users</span>
-        </a>
-      </li>
-      <li class="nav-item mb-1">
-        <a href="{{ route('email.logs') }}" class="menu-item nav-link {{ request()->routeIs('email.logs') ? 'active' : '' }}" data-tooltip="Email Audit Log">
-          <i class="bi bi-clipboard-check-fill me-2"></i><span>Email Audit Log</span>
-        </a>
-      </li>
-      <li class="nav-item mb-1">
-          <a href="{{ route('email.custom.form') }}" class="menu-item nav-link {{ request()->routeIs('email.custom.form') ? 'active' : '' }}" data-tooltip="Custom Email">
-              <i class="bi bi-chat-square-text-fill me-2"></i><span>Custom Email</span>
+       <li class="nav-item mb-1">
+          <a href="{{ route('admin.pengumuman.index') }}" class="menu-item nav-link {{ request()->routeIs('admin.pengumuman.*') ? 'active' : '' }}" data-tooltip="Pengumuman">
+              <i class="bi bi-megaphone-fill me-2"></i><span>Pengumuman</span>
           </a>
       </li>
     </ul>

@@ -11,25 +11,26 @@ use Illuminate\Validation\Rule;
 class DevisiController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Menampilkan halaman manajemen devisi.
+     *
+     * @return \Illuminate\View\View
      */
     public function index()
     {
+        // Eager load relasi 'pj' untuk optimasi query (menghindari N+1 problem)
         $devisis = Devisi::with('pj')->latest()->get();
+
+        // Ambil semua user yang memiliki peran 'pj' sebagai calon penanggung jawab
         $calon_pj = User::role('pj')->get();
+
         return view('admin.devisi.index', compact('devisis', 'calon_pj'));
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
+     * Menyimpan devisi baru ke dalam database.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
     {
@@ -40,59 +41,50 @@ class DevisiController extends Controller
 
         Devisi::create($request->all());
 
-        return redirect()->route('admin.devisi.index')->with('success', 'Devisi baru berhasil ditambahkan!');
+        return redirect()->route('admin.devisi.index')
+                         ->with('success', 'Devisi baru berhasil ditambahkan!');
     }
 
     /**
-     * Display the specified resource.
-     */
-    public function show(Devisi $devisi)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Devisi $devisi)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
+     * Mengupdate data devisi yang sudah ada di database.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\Devisi  $devisi
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function update(Request $request, Devisi $devisi)
     {
-        // 1. Validasi data yang masuk, termasuk pj_id
         $request->validate([
             'nama_devisi' => [
                 'required',
                 'string',
                 'max:255',
+                // Pastikan nama devisi unik, kecuali untuk devisi yang sedang diedit
                 Rule::unique('devisis')->ignore($devisi->id),
             ],
             'deskripsi' => 'nullable|string',
-            'pj_id' => 'nullable|exists:users,id', // <-- Validasi baru
+            // Pastikan pj_id yang dikirim ada di tabel users
+            'pj_id' => 'nullable|exists:users,id',
         ]);
 
-        // 2. Update data devisi, termasuk pj_id
-        $devisi->update([
-            'nama_devisi' => $request->nama_devisi,
-            'deskripsi' => $request->deskripsi,
-            'pj_id' => $request->pj_id, // <-- Field baru untuk di-update
-        ]);
+        // Update data devisi dengan data dari request
+        $devisi->update($request->all());
 
-        // 3. Kembali ke halaman sebelumnya dengan pesan sukses
-        return redirect()->route('admin.devisi.index')->with('success', 'Data devisi berhasil diperbarui!');
+        return redirect()->route('admin.devisi.index')
+                         ->with('success', 'Data devisi berhasil diperbarui!');
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Menghapus devisi dari database.
+     *
+     * @param  \App\Models\Devisi  $devisi
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(Devisi $devisi)
     {
         $devisi->delete();
-        return redirect()->route('admin.devisi.index')->with('success', 'Devisi berhasil dihapus!');
+
+        return redirect()->route('admin.devisi.index')
+                         ->with('success', 'Devisi berhasil dihapus!');
     }
 }

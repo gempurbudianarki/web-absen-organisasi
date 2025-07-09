@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'LEMS')
+@section('title', 'LEMS Dashboard')
 
 @section('content')
 
@@ -11,78 +11,61 @@
                 border-radius: 0.75rem;
             }
             .card-users { border-color: #0d6efd !important; }
-            .card-learners { border-color: #198754 !important; }
-            .card-employees { border-color: #6f42c1 !important; }
-            .card-mails { border-color: #fd7e14 !important; }
-            .card-announcements { border-color: #dc3545 !important; }
-            .card-attendance { border-color: #20c997 !important; }
-
+            .card-anggota { border-color: #198754 !important; }
+            .card-kegiatan { border-color: #6f42c1 !important; }
+            .card-absensi { border-color: #fd7e14 !important; }
+            .card-pengumuman { border-color: #dc3545 !important; }
+            
             .text-purple { color: #6f42c1 !important; }
-            .text-teal { color: #20c997 !important; }
         </style>
     @endpush
 
     <div class="row g-3 mt-1">
-        <!-- Total Users -->
         <div class="col-md-4 col-xl-3">
             <div class="card card-border-left card-users text-center shadow-sm">
                 <div class="card-body text-primary">
                     <i class="bi bi-people-fill display-6 mb-2"></i>
-                    <h5 class="card-title">Total Users</h5>
+                    <h5 class="card-title">Total User</h5>
                     <p class="display-6 mb-0">{{ $userCount }}</p>
                 </div>
             </div>
         </div>
 
-        <!-- Total Learners -->
         <div class="col-md-4 col-xl-3">
-            <div class="card card-border-left card-learners text-center shadow-sm">
+            <div class="card card-border-left card-anggota text-center shadow-sm">
                 <div class="card-body text-success">
                     <i class="bi bi-person-workspace display-6 mb-2"></i>
-                    <h5 class="card-title">Total Learners</h5>
-                    <p class="display-6 mb-0">{{ $learnerCount }}</p>
+                    <h5 class="card-title">Total Anggota</h5>
+                    <p class="display-6 mb-0">{{ $anggotaCount }}</p>
                 </div>
             </div>
         </div>
-        <!-- Total Employees -->
+
         <div class="col-md-4 col-xl-3">
-            <div class="card card-border-left card-employees text-center shadow-sm">
+            <div class="card card-border-left card-kegiatan text-center shadow-sm">
                 <div class="card-body text-purple">
-                    <i class="bi bi-person-badge-fill display-6 mb-2"></i>
-                    <h5 class="card-title">Total Employees</h5>
-                    <p class="display-6 mb-0">0</p>
+                    <i class="bi bi-calendar-event-fill display-6 mb-2"></i>
+                    <h5 class="card-title">Total Kegiatan</h5>
+                    <p class="display-6 mb-0">{{ $kegiatanCount }}</p>
                 </div>
             </div>
         </div>
 
-        <!-- Total Mail Logs -->
         <div class="col-md-4 col-xl-3">
-            <div class="card card-border-left card-mails text-center shadow-sm">
-                <div class="card-body text-warning">
-                    <i class="bi bi-envelope-paper-fill display-6 mb-2"></i>
-                    <h5 class="card-title">Total Mail Logs</h5>
-                    <p class="display-6 mb-0">{{ $mailLogCount }}</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Total Announcements -->
-        <div class="col-md-4 col-xl-3">
-            <div class="card card-border-left card-announcements text-center shadow-sm">
+            <div class="card card-border-left card-pengumuman text-center shadow-sm">
                 <div class="card-body text-danger">
                     <i class="bi bi-megaphone-fill display-6 mb-2"></i>
-                    <h5 class="card-title">Total Announcements</h5>
+                    <h5 class="card-title">Total Pengumuman</h5>
                     <p class="display-6 mb-0">{{ $announcementCount }}</p>
                 </div>
             </div>
         </div>
-
-        <!-- Total Attendance Logs -->
+        
         <div class="col-md-4 col-xl-3">
-            <div class="card card-border-left card-attendance text-center shadow-sm">
-                <div class="card-body text-teal">
+            <div class="card card-border-left card-absensi text-center shadow-sm">
+                <div class="card-body text-warning">
                     <i class="bi bi-clipboard2-check-fill display-6 mb-2"></i>
-                    <h5 class="card-title">Total Attendance</h5>
+                    <h5 class="card-title">Total Absensi</h5>
                     <p class="display-6 mb-0">{{ $attendanceCount }}</p>
                 </div>
             </div>
@@ -93,7 +76,7 @@
         <div class="col-md-6">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Learner vs Employee Distribution</h5>
+                    <h5 class="card-title mb-3">Distribusi Peran</h5>
                     <canvas id="userChart" height="200"></canvas>
                 </div>
             </div>
@@ -101,40 +84,27 @@
         <div class="col-md-6">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Email & Announcement Logs</h5>
+                    <h5 class="card-title mb-3">Aktivitas Sistem</h5>
                     <canvas id="logChart" height="200"></canvas>
                 </div>
             </div>
         </div>
     </div>
-
-    <div class="progress mt-3" style="height: 6px;">
-        <div class="progress-bar bg-success" role="progressbar" style="width: {{ $learnerCount / max(1, $userCount) * 100 }}%"></div>
-    </div>
 @endsection
 
 @push('scripts')
-    @if(session('emailSuccess'))
-        <script>
-            Swal.fire({
-                icon: 'success',
-                title: 'Email Sender',
-                text: '{{ session('emailSuccess') }}',
-                confirmButtonColor: '#3085d6',
-                timer: 4000,
-                showConfirmButton: false
-            });
-        </script>
-    @endif
-
     <script>
         const userChart = new Chart(document.getElementById('userChart'), {
             type: 'doughnut',
             data: {
-                labels: ['Learners', 'Employees'],
+                labels: ['Admin', 'PJ', 'Anggota'],
                 datasets: [{
-                    data: [{{ $learnerCount }}, 0], // replace 0 with $employeeCount when available
-                    backgroundColor: ['#198754', '#6f42c1']
+                    data: [
+                        {{ \App\Models\User::role('admin')->count() }}, 
+                        {{ \App\Models\User::role('pj')->count() }},
+                        {{ $anggotaCount }}
+                    ],
+                    backgroundColor: ['#dc3545', '#ffc107', '#198754']
                 }]
             },
             options: {
@@ -146,11 +116,11 @@
         const logChart = new Chart(document.getElementById('logChart'), {
             type: 'bar',
             data: {
-                labels: ['Mails', 'Announcements'],
+                labels: ['Kegiatan', 'Pengumuman', 'Absensi'],
                 datasets: [{
                     label: 'Total',
-                    data: [{{ $mailLogCount }}, {{ $announcementCount }}],
-                    backgroundColor: ['#fd7e14', '#dc3545']
+                    data: [{{ $kegiatanCount }}, {{ $announcementCount }}, {{ $attendanceCount }}],
+                    backgroundColor: ['#6f42c1', '#dc3545', '#fd7e14']
                 }]
             },
             options: {
@@ -160,5 +130,4 @@
             }
         });
     </script>
-
 @endpush
