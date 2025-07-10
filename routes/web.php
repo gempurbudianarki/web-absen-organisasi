@@ -12,7 +12,9 @@ use App\Http\Controllers\Admin\AbsensiController as AdminAbsensiController;
 use App\Http\Controllers\Admin\PengumumanController;
 use App\Http\Controllers\PJ\KegiatanController as PJKegiatanController;
 use App\Http\Controllers\PJ\AbsensiController as PJAbsensiController;
-use App\Http\Controllers\PJ\AnggotaController as PJAnggotaController; // <-- Tambahkan ini
+use App\Http\Controllers\PJ\AnggotaController as PJAnggotaController;
+use App\Http\Controllers\PJ\PengumumanController as PJPengumumanController;
+use App\Http\Controllers\Anggota\DashboardController as AnggotaDashboardController; // <-- Tambah
 use App\Http\Controllers\QrScanController;
 
 /*
@@ -45,12 +47,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     
-    // Rute untuk dashboard anggota
-    Route::get('/anggota/dashboard', function() {
-        return view('learner.dashboard');
-    })->name('anggota.dashboard');
-
-    // --- RUTE UNTUK ABSENSI ANGGOTA ---
+    // --- RUTE UNTUK ANGGOTA ---
+    Route::get('/anggota/dashboard', [AnggotaDashboardController::class, 'index'])->name('anggota.dashboard');
     Route::get('/scan-qr', [QrScanController::class, 'scan'])->name('absensi.scan');
     Route::post('/process-scan', [QrScanController::class, 'process'])->name('absensi.process');
     Route::get('/kode-absensi', [QrScanController::class, 'showCodeForm'])->name('absensi.kode.form');
@@ -89,8 +87,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('pj')->name('pj.')->middleware('role:pj')->group(function () {
         Route::resource('kegiatan', PJKegiatanController::class);
         Route::resource('absensi', PJAbsensiController::class);
+        Route::resource('pengumuman', PJPengumumanController::class);
         Route::post('absensi/{kegiatan}/generate-code', [PJAbsensiController::class, 'generateCode'])->name('absensi.generate_code');
-        Route::get('anggota', [PJAnggotaController::class, 'index'])->name('anggota.index'); // <-- BARIS BARU DI SINI
+        Route::get('anggota', [PJAnggotaController::class, 'index'])->name('anggota.index');
     });
 
     // --- RUTE UNTUK PROSES OTP (TIDAK PERLU PREFIX) ---

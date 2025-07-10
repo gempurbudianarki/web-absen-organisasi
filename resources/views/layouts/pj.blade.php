@@ -6,6 +6,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    @stack('head')
     @stack('styles')
     <style>
       html, body { height: 100%; margin: 0; overflow: hidden; }
@@ -27,7 +28,7 @@
     </div>
     <ul class="nav nav-pills flex-column mb-auto">
       <li class="nav-item">
-        <a href="{{ route('pj.kegiatan.index') }}" class="nav-link {{ request()->routeIs('pj.kegiatan.index') ? 'active' : '' }}">
+        <a href="{{-- route('pj.dashboard') --}}" class="nav-link">
           <i class="bi bi-speedometer2"></i><span>Dashboard</span>
         </a>
       </li>
@@ -39,6 +40,11 @@
       <li class="nav-item">
         <a href="{{ route('pj.anggota.index') }}" class="nav-link {{ request()->routeIs('pj.anggota.*') ? 'active' : '' }}">
           <i class="bi bi-people-fill"></i><span>Anggota Devisi</span>
+        </a>
+      </li>
+       <li class="nav-item">
+        <a href="{{ route('pj.pengumuman.index') }}" class="nav-link {{ request()->routeIs('pj.pengumuman.*') ? 'active' : '' }}">
+          <i class="bi bi-megaphone-fill"></i><span>Pengumuman Devisi</span>
         </a>
       </li>
       <li class="nav-item">
