@@ -56,7 +56,7 @@ composer --version
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/leonardtdomingovida/learner-and-employee-management-system.git
+git https://github.com/gempurbudianarki/learner-and-employee-management-system
 cd learner-and-employee-management-system
 
 # 2. Install PHP dependencies
