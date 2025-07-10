@@ -48,16 +48,23 @@
                                 <td>{{ \Carbon\Carbon::parse($kegiatan->waktu_mulai)->format('d M Y, H:i') }}</td>
                                 <td>{{ $kegiatan->tempat }}</td>
                                 <td class="text-center">
-                                    <button class="btn btn-sm btn-info" title="Lihat Detail">
+                                    {{-- PERBAIKAN: Tombol Detail/Mata sekarang menjadi link ke halaman edit --}}
+                                    <a href="{{ route('admin.kegiatan.edit', $kegiatan->id) }}" class="btn btn-sm btn-info" title="Lihat Detail">
                                         <i class="bi bi-eye-fill"></i>
-                                    </button>
-                                    {{-- Tombol Edit Sekarang Menjadi Link --}}
+                                    </a>
+                                    
                                     <a href="{{ route('admin.kegiatan.edit', $kegiatan->id) }}" class="btn btn-sm btn-warning" title="Edit">
                                         <i class="bi bi-pencil-fill"></i>
                                     </a>
-                                    <button class="btn btn-sm btn-danger" title="Hapus">
-                                        <i class="bi bi-trash-fill"></i>
-                                    </button>
+
+                                    {{-- PERBAIKAN: Memastikan form untuk Hapus sudah benar --}}
+                                    <form action="{{ route('admin.kegiatan.destroy', $kegiatan->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus kegiatan ini?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Hapus">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         @empty

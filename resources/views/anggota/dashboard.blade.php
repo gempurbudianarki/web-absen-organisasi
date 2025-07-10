@@ -33,7 +33,8 @@
     @endif
     
     <div class="px-4 py-5 my-5 text-center">
-        <img class="d-block mx-auto mb-4" src="{{ asset('images/developer.png') }}" alt="" width="72">
+        {{-- PERUBAHAN DI SINI --}}
+        <img class="d-block mx-auto mb-4 rounded-circle" src="{{ asset('images/LOGO AT TADRIZ.jpg') }}" alt="" width="90">
         <h1 class="display-5 fw-bold text-body-emphasis">Selamat Datang, {{ Auth::user()->name }}!</h1>
         <div class="col-lg-6 mx-auto">
             <p class="lead mb-4">Ini adalah pusat kendali Anda. Lihat kegiatan mendatang, lakukan absensi, dan kelola profil Anda di sini.</p>

@@ -1,27 +1,12 @@
 <?php
 
 namespace App\Http\Controllers;
-// Defines this class as part of the App\Http\Controllers namespace,
-// so Laravel knows to use it for handling web requests.
 
-use Illuminate\Http\Request;       
-// Provides the Request object, which gives access to user input,
-// query parameters, and other HTTP request data in controller methods.
-
-use App\Models\User;               
-// Imports the User Eloquent model, allowing us to query,
-// create, update, and delete records in the `users` database table.
-
-use Illuminate\Support\Facades\Mail;       
-// Brings in Laravel’s Mail facade, which offers a simple
-// static interface to send emails via configured mail drivers.
-
-use App\Mail\WelcomeMail;          
-// Imports the WelcomeMail mailable class, which encapsulates
-// the email content, subject, and view template for welcome messages.
-
+use Illuminate\Http\Request;
+use App\Models\User;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\WelcomeMail;
 use App\Mail\CustomMessageMail;
-
 use App\Models\EmailLog;
 use Illuminate\Support\Facades\DB;
 
@@ -29,16 +14,14 @@ class UserController extends Controller
 {
     public function index()
     {
-        // $users = User::all(); // get all users
-        // $users = User::orderBy('name', 'asc')->get(); // alphabetical order
-        $users = User::orderBy('created_at', 'desc')->paginate(10); // created_date order descending
+        $users = User::orderBy('created_at', 'desc')->paginate(10);
         return view('users.index', compact('users'));
     }
 
     public function update(Request $request, User $user)
     {
         $request->validate([
-            'name' => 'required',
+            'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
             'role' => 'required|exists:roles,name',
         ]);
@@ -49,13 +32,11 @@ class UserController extends Controller
                 'email' => $request->email,
             ]);
 
-            // Sync role using Spatie
             $user->syncRoles([$request->role]);
         });
 
-        return redirect()
-            ->route('users.index')
-            ->with('success', 'User updated successfully!');
+        return redirect()->route('admin.users.index')
+                         ->with('success', 'User berhasil diperbarui!');
     }
 
 
@@ -63,9 +44,9 @@ class UserController extends Controller
     {
         $user->delete();
 
-        return redirect()
-            ->route('users.index')
-            ->with('success', 'User deleted successfully.');
+        // PERBAIKAN DI SINI: Menggunakan nama route yang benar
+        return redirect()->route('admin.users.index')
+                         ->with('success', 'User berhasil dihapus.');
     }
 
      /**
@@ -73,16 +54,13 @@ class UserController extends Controller
      */
     public function sendMail(Request $request)
     {
-        // Validate that at least one checkbox was ticked
         $request->validate([
             'recipients'   => 'required|array|min:1',
             'recipients.*' => 'integer|exists:users,id',
         ]);
 
-        // Fetch the selected users
         $users = User::whereIn('id', $request->input('recipients'))->get();
 
-        // Send email to each
         foreach ($users as $user) {
             Mail::to($user->email)->send(new WelcomeMail($user));
 
@@ -94,29 +72,23 @@ class UserController extends Controller
             ]);
         }
 
-        // Prepare a comma-separated list of emails for feedback
         $emails = $users->pluck('email')->implode(', ');
 
         return redirect()
             ->back()
-            ->with('emailSuccess', "Sent to: {$emails}");
+            ->with('emailSuccess', "Welcome email terkirim ke: {$emails}");
     }
 
-    /* Fetches all users ordered by name.
-    Passes them to the Blade view resources/views/custom-email.blade.php.*/
     public function customEmailForm()
     {
+        // Fitur ini belum kita tautkan di menu mana pun, jadi kita biarkan dulu
         $users = User::orderBy('name')->get();
         return view('custom-email', compact('users'));
     }
 
-    /*
-     * Validates subject, content, and recipient IDs.
-     * Sends a rich-text custom email to each selected user using CustomMessageMail.
-     * Redirects to the user list with a success message.
-     */
     public function sendCustomEmail(Request $request)
     {
+        // Fitur ini belum kita tautkan di menu mana pun, jadi kita biarkan dulu
         $request->validate([
             'subject' => 'required|string|max:255',
             'content' => 'required|string',
@@ -135,11 +107,7 @@ class UserController extends Controller
         $more = $users->count() > 5 ? ' and others' : '';
 
         return redirect()
-            ->back() //this would redirect to the previous page
-            // ->route('email.logs') // Redirects to the email logs route
+            ->back()
             ->with('emailSuccess', "Custom message has been queued for: {$emails}{$more}");
-
-        // return redirect()->route('email_logs.index')->with('emailSuccess', 'Custom message sent successfully!');
     }
-
 }
