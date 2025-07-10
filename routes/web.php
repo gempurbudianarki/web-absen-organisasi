@@ -7,10 +7,12 @@ use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\EmailLogController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Admin\DevisiController;
-use App\Http\Controllers\Admin\KegiatanController;
-use App\Http\Controllers\Admin\AbsensiController;
-use App\Http\Controllers\Admin\PengumumanController; // <-- Tambahkan ini
-use App\Http\Controllers\PJ\KegiatanController as PJ_KegiatanController;
+use App\Http\Controllers\Admin\KegiatanController as AdminKegiatanController;
+use App\Http\Controllers\Admin\AbsensiController as AdminAbsensiController;
+use App\Http\Controllers\Admin\PengumumanController;
+use App\Http\Controllers\PJ\KegiatanController as PJKegiatanController;
+use App\Http\Controllers\PJ\AbsensiController as PJAbsensiController;
+use App\Http\Controllers\PJ\AnggotaController as PJAnggotaController; // <-- Tambahkan ini
 use App\Http\Controllers\QrScanController;
 
 /*
@@ -48,21 +50,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return view('learner.dashboard');
     })->name('anggota.dashboard');
 
-    // --- RUTE UNTUK ABSENSI QR ---
+    // --- RUTE UNTUK ABSENSI ANGGOTA ---
     Route::get('/scan-qr', [QrScanController::class, 'scan'])->name('absensi.scan');
     Route::post('/process-scan', [QrScanController::class, 'process'])->name('absensi.process');
+    Route::get('/kode-absensi', [QrScanController::class, 'showCodeForm'])->name('absensi.kode.form');
+    Route::post('/process-kode', [QrScanController::class, 'processCode'])->name('absensi.kode.process');
 
 
     // --- GRUP KHUSUS ADMIN ---
     Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
         
-        Route::get('absensi/{kegiatan}/qr', [AbsensiController::class, 'showQr'])->name('absensi.qr');
+        Route::get('absensi/{kegiatan}/qr', [AdminAbsensiController::class, 'showQr'])->name('absensi.qr');
 
         Route::resource('devisi', DevisiController::class);
-        Route::resource('kegiatan', KegiatanController::class);
-        Route::resource('absensi', AbsensiController::class);
-        Route::resource('pengumuman', PengumumanController::class); // <-- BARIS BARU DI SINI
+        Route::resource('kegiatan', AdminKegiatanController::class);
+        Route::resource('absensi', AdminAbsensiController::class);
+        Route::resource('pengumuman', PengumumanController::class);
         
         Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
@@ -83,7 +87,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     // --- GRUP KHUSUS PJ ---
     Route::prefix('pj')->name('pj.')->middleware('role:pj')->group(function () {
-        Route::resource('kegiatan', PJ_KegiatanController::class);
+        Route::resource('kegiatan', PJKegiatanController::class);
+        Route::resource('absensi', PJAbsensiController::class);
+        Route::post('absensi/{kegiatan}/generate-code', [PJAbsensiController::class, 'generateCode'])->name('absensi.generate_code');
+        Route::get('anggota', [PJAnggotaController::class, 'index'])->name('anggota.index'); // <-- BARIS BARU DI SINI
     });
 
     // --- RUTE UNTUK PROSES OTP (TIDAK PERLU PREFIX) ---
