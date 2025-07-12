@@ -6,14 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <!-- Bootstrap CSS & Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 
-    <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <!-- QR Code Scanner -->
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
@@ -68,39 +65,37 @@
 <body>
 
 <div class="container position-relative">
-    <!-- X Close Button -->
     <a href="{{ url('/') }}"
        class="position-absolute top-0 end-0 m-3 text-white fs-4 text-decoration-none"
        title="Back to Home"
        style="z-index: 10;">&times;</a>
        
     <div class="text-center mb-1">
-        <h2 class="fw-bold">Learner Attendance</h2>
-        <p class="text-gray-300">Scan the QR code and log your session</p>
+        <h2 class="fw-bold">Absensi Anggota (QR Scan)</h2>
+        <p class="text-gray-300">Scan QR code dan log sesi kehadiran</p>
     </div>
     <div class="text-center">
-        <h5 class="fw-semibold mb-1">Current Date and Time</h5>
+        <h5 class="fw-semibold mb-1">Waktu Saat Ini</h5>
         <div id="realtime-clock" class="fs-5 text-primary fw-bold"></div>
     </div>
 
     <div class="attendance-container">
-        <!-- QR Form -->
         <div class="qr-form-container flex-fill">
             <form method="POST" action="{{ route('admin.attendance.store') }}" class="text-center">
                 @csrf
                 <div class="mb-2">
-                    <label class="form-label fw-semibold">Scan Learner QR Code</label>
+                    <label class="form-label fw-semibold">Scan QR Code Anggota</label>
                     <div id="qr-reader" style="width: 100%; max-width: 300px; margin: auto; border-radius: 12px;"></div>
                     <input type="hidden" id="qr_code" name="qr_code">
                     <div id="learner-info" class="alert alert-primary d-none mt-3">
-                        <strong>Learner:</strong> <span id="learner-name">-</span>
+                        <strong>Anggota:</strong> <span id="learner-name">-</span>
                     </div>
                 </div>
 
                 <div class="mb-4 text-start">
-                    <label class="form-label">Select Session</label>
+                    <label class="form-label">Pilih Sesi</label>
                     <div class="d-flex flex-wrap gap-3">
-                        @foreach (['am_in' => 'AM IN', 'am_out' => 'AM OUT', 'pm_in' => 'PM IN', 'pm_out' => 'PM OUT'] as $value => $label)
+                        @foreach (['am_in' => 'Pagi Masuk', 'am_out' => 'Pagi Pulang', 'pm_in' => 'Siang Masuk', 'pm_out' => 'Siang Pulang'] as $value => $label)
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="session" id="{{ $value }}" value="{{ $value }}" {{ $loop->first ? 'checked' : '' }}>
                                 <label class="form-check-label small text-dark" for="{{ $value }}">{{ $label }}</label>
@@ -111,40 +106,41 @@
             </form>
         </div>
 
-        <!-- Attendance Table -->
         <div class="table-container flex-fill">
-            <h6 class="text-muted mb-3">As of {{ \Carbon\Carbon::parse($today)->format('l, F j, Y') }}</h6>
+            <h6 class="text-muted mb-3">Absensi per tanggal {{ \Carbon\Carbon::parse($today)->isoFormat('D MMMM YYYY') }}</h6>
             <div class="table-responsive">
                 <table class="table table-bordered table-hover">
                     <thead class="custom-gray-head">
                         <tr>
                             <th class="text-center" style="width: 1%;">No.</th>
-                            <th>Name</th>
-                            <th>AM IN</th>
-                            <th>AM OUT</th>
-                            <th>PM IN</th>
-                            <th>PM OUT</th>
+                            <th>Nama</th>
+                            <th>Pagi Masuk</th>
+                            <th>Pagi Pulang</th>
+                            <th>Siang Masuk</th>
+                            <th>Siang Pulang</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($attendances as $index => $attendance)
                             <tr>
                                 <td class="text-center">{{ ($attendances->currentPage() - 1) * $attendances->perPage() + $loop->iteration }}</td>
-                                <td>{{ $attendance->learner->lname }}, {{ $attendance->learner->fname }}</td>
-                                <td>{{ $attendance->am_in ? \Carbon\Carbon::parse($attendance->am_in)->format('h:i A') : '-' }}</td>
-                                <td>{{ $attendance->am_out ? \Carbon\Carbon::parse($attendance->am_out)->format('h:i A') : '-' }}</td>
-                                <td>{{ $attendance->pm_in ? \Carbon\Carbon::parse($attendance->pm_in)->format('h:i A') : '-' }}</td>
-                                <td>{{ $attendance->pm_out ? \Carbon\Carbon::parse($attendance->pm_out)->format('h:i A') : '-' }}</td>
+                                {{-- START OF MODIFIED CODE --}}
+                                <td>{{ $attendance->user->name ?? 'User Not Found' }}</td>
+                                {{-- END OF MODIFIED CODE --}}
+                                <td>{{ $attendance->am_in ? \Carbon\Carbon::parse($attendance->am_in)->format('H:i') : '-' }}</td>
+                                <td>{{ $attendance->am_out ? \Carbon\Carbon::parse($attendance->am_out)->format('H:i') : '-' }}</td>
+                                <td>{{ $attendance->pm_in ? \Carbon\Carbon::parse($attendance->pm_in)->format('H:i') : '-' }}</td>
+                                <td>{{ $attendance->pm_out ? \Carbon\Carbon::parse($attendance->pm_out)->format('H:i') : '-' }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="text-center text-warning">No attendance records for today.</td></tr>
+                            <tr><td colspan="6" class="text-center text-warning">Belum ada data absensi untuk hari ini.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             <div class="d-flex justify-content-between align-items-center mt-3">
                 <small class="text-muted">
-                    Showing {{ $attendances->firstItem() ?? 0 }} to {{ $attendances->lastItem() ?? 0 }} of {{ $attendances->total() }} entries
+                    Menampilkan {{ $attendances->firstItem() ?? 0 }} sampai {{ $attendances->lastItem() ?? 0 }} dari {{ $attendances->total() }} data
                 </small>
                 <div>{{ $attendances->links() }}</div>
             </div>
@@ -175,7 +171,7 @@
         document.addEventListener('DOMContentLoaded', function () {
             Swal.fire({
                 icon: 'warning',
-                title: 'Warning',
+                title: 'Perhatian',
                 text: @json(session('warning')),
                 confirmButtonColor: '#f0ad4e',
                 timer: 2500,
@@ -214,8 +210,8 @@
                 isSubmitting = false;
                 Swal.fire({
                     icon: 'error',
-                    title: 'QR Code Not Recognized',
-                    text: 'This QR code is not registered in the system.',
+                    title: 'QR Code Tidak Dikenali',
+                    text: 'QR code ini tidak terdaftar di dalam sistem.',
                 });
             }
         })
@@ -223,8 +219,8 @@
             isSubmitting = false;
             Swal.fire({
                 icon: 'error',
-                title: 'Lookup Failed',
-                text: 'Error finding learner by QR code.',
+                title: 'Pencarian Gagal',
+                text: 'Terjadi kesalahan saat mencari pengguna via QR code.',
             });
         });
     }
@@ -259,7 +255,7 @@
                     body: formData
                 });
             } else {
-                throw new Error('Learner not found during re-lookup.');
+                throw new Error('Pengguna tidak ditemukan saat pencarian ulang.');
             }
         })
         .then(async response => {
@@ -273,7 +269,6 @@
                     position: 'top-end',
                     icon: 'success',
                     html: `<span style="color:#212529;">${data.message}</span>`,
-                    title: data.message,
                     showConfirmButton: false,
                     timer: 2500,
                     customClass: { popup: 'custom-toast-border' }
@@ -282,7 +277,7 @@
             } else {
                 Swal.fire({
                     icon: 'warning',
-                    title: 'Warning',
+                    title: 'Perhatian',
                     text: data.message,
                     timer: 2500
                 });
@@ -293,7 +288,7 @@
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
-                text: 'Could not submit attendance.',
+                text: 'Tidak dapat mengirimkan data absensi.',
             });
         });
     }
@@ -312,7 +307,7 @@
             minute: '2-digit',
             second: '2-digit',
         };
-        document.getElementById('realtime-clock').textContent = now.toLocaleString('en-US', options);
+        document.getElementById('realtime-clock').textContent = now.toLocaleString('id-ID', options);
     }
 
     setInterval(updateClock, 1000);

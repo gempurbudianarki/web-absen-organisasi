@@ -3,83 +3,102 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Absensi;
-use App\Models\Kegiatan;
+use App\Models\LearnerAttendance;
 use App\Models\User;
+use App\Models\Devisi;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use SimpleSoftwareIO\QrCode\Facades\QrCode; // Import library
+use Carbon\Carbon;
 
 class AbsensiController extends Controller
 {
-    public function index()
+    /**
+     * Display the attendance report page.
+     */
+    public function index(Request $request)
     {
-        $kegiatans = Kegiatan::where('waktu_mulai', '>=', now()->subHours(6))
-                             ->with('devisi')
-                             ->orderBy('waktu_mulai', 'asc')
-                             ->get();
-        return view('admin.absensi.index', compact('kegiatans'));
+        // Set default date range to today
+        $startDate = $request->input('start_date', Carbon::today()->toDateString());
+        $endDate = $request->input('end_date', Carbon::today()->toDateString());
+        $selectedUserId = $request->input('user_id');
+        $selectedDevisiId = $request->input('devisi_id');
+
+        // --- START OF MODIFIED CODE ---
+
+        // Query now uses the 'user' relationship defined in LearnerAttendance model
+        $query = LearnerAttendance::with(['user.devisi'])
+            ->whereBetween('date', [$startDate, $endDate]);
+
+        // Apply filter by specific user if selected
+        if ($selectedUserId) {
+            // The relationship is now direct via 'learner_id' which points to users table
+            $query->where('learner_id', $selectedUserId);
+        }
+
+        // Apply filter by devisi if selected
+        if ($selectedDevisiId) {
+            $query->whereHas('user.devisi', function ($q) use ($selectedDevisiId) {
+                $q->where('id', $selectedDevisiId);
+            });
+        }
+        
+        // --- END OF MODIFIED CODE ---
+
+        // Paginate the results
+        $absensiLogs = $query->latest('date')->paginate(15);
+
+        // Get data for filter dropdowns
+        $users = User::role('anggota')->orderBy('name')->get();
+        $devisis = Devisi::orderBy('nama_devisi')->get();
+
+        // Pass data to the view
+        return view('admin.absensi.index', [
+            'absensiLogs' => $absensiLogs,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'users' => $users,
+            'devisis' => $devisis,
+            'selectedUserId' => $selectedUserId,
+            'selectedDevisiId' => $selectedDevisiId,
+        ]);
+    }
+    
+    /**
+     * Show the form for creating a new attendance record.
+     */
+    public function create()
+    {
+        // We now fetch users with the 'anggota' role for the dropdown
+        $users = User::role('anggota')->orderBy('name')->get();
+        return view('admin.absensi.create', ['learners' => $users]); // Pass as 'learners' for now to match view
     }
 
-    public function show($kegiatan_id)
-    {
-        $kegiatan = Kegiatan::findOrFail($kegiatan_id);
-        $absensi = Absensi::where('kegiatan_id', $kegiatan->id)->with('user')->get();
-        $absenUserIds = $absensi->pluck('user_id')->toArray();
-        $peserta = User::role('anggota')
-                       ->whereNotIn('id', $absenUserIds)
-                       ->orderBy('name')
-                       ->get();
-        return view('admin.absensi.show', compact('kegiatan', 'absensi', 'peserta'));
-    }
-
+    /**
+     * Store a newly created attendance record in storage.
+     */
     public function store(Request $request)
     {
         $request->validate([
-            'kegiatan_id' => 'required|exists:kegiatans,id',
-            'user_id' => [
-                'required', 'exists:users,id',
-                Rule::unique('absensis')->where(function ($query) use ($request) {
-                    return $query->where('kegiatan_id', $request->kegiatan_id);
-                }),
+            'learner_id' => 'required|exists:users,id', // Validate against users table
+            'date' => 'required|date',
+            'am_in' => 'nullable|date_format:H:i',
+            'am_out' => 'nullable|date_format:H:i',
+            'pm_in' => 'nullable|date_format:H:i',
+            'pm_out' => 'nullable|date_format:H:i',
+        ]);
+
+        LearnerAttendance::updateOrCreate(
+            [
+                'learner_id' => $request->learner_id, // This column now correctly points to a user's ID
+                'date' => $request->date,
             ],
-            'status' => 'required|in:hadir,izin,sakit',
-            'keterangan' => 'nullable|string',
-        ],[
-            'user_id.unique' => 'Anggota ini sudah diabsen untuk kegiatan ini.'
-        ]);
+            [
+                'am_in' => $request->am_in,
+                'am_out' => $request->am_out,
+                'pm_in' => $request->pm_in,
+                'pm_out' => $request->pm_out,
+            ]
+        );
 
-        Absensi::create([
-            'kegiatan_id' => $request->kegiatan_id,
-            'user_id' => $request->user_id,
-            'status' => $request->status,
-            'waktu_absen' => now(),
-            'keterangan' => $request->keterangan,
-        ]);
-
-        return redirect()->route('admin.absensi.show', $request->kegiatan_id)
-                         ->with('success', 'Kehadiran berhasil dicatat!');
-    }
-
-    public function destroy(Absensi $absensi)
-    {
-        $kegiatan_id = $absensi->kegiatan_id;
-        $absensi->delete();
-        return redirect()->route('admin.absensi.show', $kegiatan_id)
-                         ->with('success', 'Data absensi berhasil dihapus.');
-    }
-        
-    /**
-     * Menampilkan halaman dengan QR Code untuk kegiatan tertentu.
-     */
-    public function showQr(Kegiatan $kegiatan)
-    {
-        // Data yang akan kita sematkan di dalam QR Code
-        $dataToEncode = json_encode(['kegiatan_id' => $kegiatan->id]);
-
-        // Generate QR Code dalam format SVG
-        $qrCode = QrCode::size(300)->generate($dataToEncode);
-
-        return view('admin.absensi.qr_display', compact('kegiatan', 'qrCode'));
+        return redirect()->route('admin.absensi.index')->with('success', 'Data absensi manual berhasil disimpan.');
     }
 }

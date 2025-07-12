@@ -3,19 +3,16 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\LearnerController;
 use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\EmailLogController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\Admin\LearnerAttendanceController;
+use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\Admin\DevisiController;
-use App\Http\Controllers\Admin\KegiatanController as AdminKegiatanController;
-use App\Http\Controllers\Admin\AbsensiController as AdminAbsensiController;
-use App\Http\Controllers\Admin\PengumumanController;
-use App\Http\Controllers\PJ\KegiatanController as PJKegiatanController;
-use App\Http\Controllers\PJ\AbsensiController as PJAbsensiController;
-use App\Http\Controllers\PJ\AnggotaController as PJAnggotaController;
-use App\Http\Controllers\PJ\PengumumanController as PJPengumumanController;
-use App\Http\Controllers\Anggota\DashboardController as AnggotaDashboardController; // <-- Tambah
-use App\Http\Controllers\QrScanController;
+use App\Http\Controllers\PJ\KegiatanController;
+use App\Http\Controllers\Admin\AbsensiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -38,7 +35,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         $user = auth()->user();
         if ($user->hasRole('admin')) { return redirect()->route('admin.dashboard'); }
         if ($user->hasRole('pj')) { return redirect()->route('pj.kegiatan.index'); }
-        if ($user->hasRole('anggota')) { return redirect()->route('anggota.dashboard'); }
+        if ($user->hasRole('employee')) { return redirect()->route('employee.dashboard'); }
+        if ($user->hasRole('anggota') || $user->hasRole('learner')) { return redirect()->route('learner.dashboard'); }
         return abort(403);
     })->name('dashboard');
 
@@ -47,24 +45,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     
-    // --- RUTE UNTUK ANGGOTA ---
-    Route::get('/anggota/dashboard', [AnggotaDashboardController::class, 'index'])->name('anggota.dashboard');
-    Route::get('/scan-qr', [QrScanController::class, 'scan'])->name('absensi.scan');
-    Route::post('/process-scan', [QrScanController::class, 'process'])->name('absensi.process');
-    Route::get('/kode-absensi', [QrScanController::class, 'showCodeForm'])->name('absensi.kode.form');
-    Route::post('/process-kode', [QrScanController::class, 'processCode'])->name('absensi.kode.process');
-
+    // Employee & Learner Dashboards
+    Route::get('/employee/dashboard', [EmployeeController::class, 'index'])->name('employee.dashboard');
+    Route::get('/learner/dashboard', [LearnerController::class, 'index'])->name('learner.dashboard');
 
     // --- GRUP KHUSUS ADMIN ---
-    Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
+    Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
         
-        Route::get('absensi/{kegiatan}/qr', [AdminAbsensiController::class, 'showQr'])->name('absensi.qr');
-
         Route::resource('devisi', DevisiController::class);
-        Route::resource('kegiatan', AdminKegiatanController::class);
-        Route::resource('absensi', AdminAbsensiController::class);
-        Route::resource('pengumuman', PengumumanController::class);
+
+        Route::get('/absensi', [AbsensiController::class, 'index'])->name('absensi.index');
+        Route::get('/absensi/create', [AbsensiController::class, 'create'])->name('absensi.create');
+        Route::post('/absensi', [AbsensiController::class, 'store'])->name('absensi.store');
         
         Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
@@ -73,29 +66,47 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/register-user', [RegisterController::class, 'showAdminRegisterForm'])->name('register.form');
         Route::post('/register-user', [RegisterController::class, 'registerByAdmin'])->name('register.user');
-        
-        Route::get('/users', [UserController::class, 'index'])->name('users.index');
-        Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
-        Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
-        Route::post('/users/sendmail', [UserController::class, 'sendMail'])->name('users.sendmail');
-        Route::get('/email-logs', [EmailLogController::class, 'index'])->name('email.logs');
-        Route::get('/custom-email', [UserController::class, 'customEmailForm'])->name('email.custom.form');
-        Route::post('/custom-email/send', [UserController::class, 'sendCustomEmail'])->name('email.custom.send');
     });
     
     // --- GRUP KHUSUS PJ ---
-    Route::prefix('pj')->name('pj.')->middleware('role:pj')->group(function () {
-        Route::resource('kegiatan', PJKegiatanController::class);
-        Route::resource('absensi', PJAbsensiController::class);
-        Route::resource('pengumuman', PJPengumumanController::class);
-        Route::post('absensi/{kegiatan}/generate-code', [PJAbsensiController::class, 'generateCode'])->name('absensi.generate_code');
-        Route::get('anggota', [PJAnggotaController::class, 'index'])->name('anggota.index');
+    Route::prefix('pj')->name('pj.')->group(function () {
+        Route::resource('kegiatan', KegiatanController::class);
     });
+
+    // --- GRUP UNTUK FITUR BERSAMA (DIAKSES ADMIN) ---
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    Route::get('/users/{id}', [UserController::class, 'show'])->name('users.show');
+    Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+    Route::post('/users/sendmail', [UserController::class, 'sendMail'])->name('users.sendmail');
+    Route::get('/users/{id}/qrcode', [UserController::class, 'generateQrCode'])->name('users.qrcode');
+    Route::post('/users/{id}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset_password');
+    Route::post('/users/bulk-action', [UserController::class, 'bulkAction'])->name('users.bulk_action');
+
+    Route::get('/email-logs', [EmailLogController::class, 'index'])->name('email.logs');
+    Route::get('/custom-email', [UserController::class, 'customEmailForm'])->name('email.custom.form');
+    Route::post('/custom-email/send', [UserController::class, 'sendCustomEmail'])->name('email.custom.send');
 
     // --- RUTE UNTUK PROSES OTP (TIDAK PERLU PREFIX) ---
     Route::get('/verify-otp', [RegisterController::class, 'showOtpForm'])->name('admin.otp.verify.form');
     Route::post('/verify-otp', [RegisterController::class, 'verifyOtp'])->name('admin.otp.verify.submit');
 
+    // Fitur lain yang mungkin akan dipakai oleh banyak role
+    Route::get('attendance', [LearnerAttendanceController::class, 'index'])->name('admin.attendance.index');
+    Route::post('attendance/store', [LearnerAttendanceController::class, 'store'])->name('admin.attendance.store');
+    Route::post('attendance/lookup-learner', [LearnerAttendanceController::class, 'lookupLearner'])->name('admin.attendance.lookup-learner');
+    
+    Route::prefix('admin/announcements')->name('admin.announcements.')->group(function () {
+        Route::get('/', [AnnouncementController::class, 'index'])->name('index');
+        Route::post('/', [AnnouncementController::class, 'store'])->name('store');
+        Route::get('/send', [AnnouncementController::class, 'sendForm'])->name('sendForm');
+        Route::post('/send', [AnnouncementController::class, 'processSend'])->name('processSend');
+        Route::get('/{id}/send', [AnnouncementController::class, 'send'])->name('send');
+        Route::get('/logs', [AnnouncementController::class, 'logs'])->name('logs');
+    });
+
+    Route::resource('learners', LearnerController::class)->names('admin.learners');
+    Route::delete('/learners/{id}', [LearnerController::class, 'destroy'])->name('learners.destroy');
 });
 
 

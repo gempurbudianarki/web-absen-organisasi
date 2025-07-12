@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
+// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -22,6 +23,14 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'devisi_id',
+        
+        // --- KOLOM BARU HASIL KONSOLIDASI ---
+        'fname',
+        'mname',
+        'lname',
+        'grade_level',
+        'section',
+        'qr_code',
     ];
 
     /**
@@ -61,5 +70,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function devisiYangDipimpin()
     {
         return $this->hasOne(Devisi::class, 'pj_id');
+    }
+
+    /**
+     * Define the relationship to attendance records.
+     * A user can have many attendance records.
+     */
+    public function attendance()
+    {
+        return $this->hasMany(LearnerAttendance::class);
     }
 }

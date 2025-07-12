@@ -9,7 +9,7 @@ class AnnouncementLog extends Model
 {
     protected $fillable = [
         'announcement_id',
-        'learner_id',
+        'learner_id', // Tetap menggunakan nama kolom ini, tapi isinya adalah user_id
         'is_sent',
         'sent_at',
     ];
@@ -19,9 +19,12 @@ class AnnouncementLog extends Model
         return $this->belongsTo(Announcement::class);
     }
 
-    public function learner()
+    /**
+     * An announcement log belongs to a User.
+     * The foreign key is 'learner_id' but it points to the 'users' table's id.
+     */
+    public function user()
     {
-        return $this->belongsTo(Learner::class);
+        return $this->belongsTo(User::class, 'learner_id');
     }
-
 }

@@ -1,10 +1,10 @@
 @extends('layouts.admin')
 
-@section('title', 'Announcement Logs')
+@section('title', 'Riwayat Pengumuman')
 
 @section('content')
 <div class="container">
-    <h4 class="mb-4">Announcement Logs</h4>
+    <h4 class="mb-4">Riwayat Pengiriman Pengumuman</h4>
 
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
@@ -16,11 +16,11 @@
                 <thead class="table-light">
                     <tr>
                         <th>#</th>
-                        <th>Announcement Title</th>
-                        <th>Learner Name</th>
+                        <th>Judul Pengumuman</th>
+                        <th>Nama Penerima</th>
                         <th>Email</th>
                         <th>Status</th>
-                        <th>Sent At</th>
+                        <th>Dikirim Pada</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -28,16 +28,18 @@
                         <tr>
                             <td>{{ $logs->firstItem() + $index }}</td>
                             <td>{{ $log->announcement->title }}</td>
-                            <td>{{ $log->learner->lname }}, {{ $log->learner->fname }}</td>
-                            <td>{{ $log->learner->email }}</td>
+                            {{-- START OF MODIFIED CODE --}}
+                            <td>{{ $log->user->name ?? 'User tidak ditemukan' }}</td>
+                            <td>{{ $log->user->email ?? '-' }}</td>
+                            {{-- END OF MODIFIED CODE --}}
                             <td>
                                 @if($log->is_sent)
-                                    <span class="badge bg-success">Sent</span>
+                                    <span class="badge bg-success">Terkirim</span>
                                 @else
-                                    <span class="badge bg-secondary">Pending</span>
+                                    <span class="badge bg-danger">Gagal</span>
                                 @endif
                             </td>
-                            <td>{{ $log->sent_at ? \Carbon\Carbon::parse($log->sent_at)->format('M d, Y h:i A') : '-' }}</td>
+                            <td>{{ $log->sent_at ? \Carbon\Carbon::parse($log->sent_at)->format('d M Y, H:i') : '-' }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -48,7 +50,7 @@
             {{ $logs->links() }}
         </div>
     @else
-        <p class="text-muted">No announcement logs found.</p>
+        <p class="text-muted">Belum ada riwayat pengiriman pengumuman.</p>
     @endif
 </div>
 @endsection

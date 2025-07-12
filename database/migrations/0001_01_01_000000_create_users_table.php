@@ -13,12 +13,28 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+            
+            // Kolom dari User asli
             $table->string('name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            
+            // --- KOLOM BARU HASIL KONSOLIDASI ---
+            // Informasi personal yang sebelumnya di 'learners'
+            $table->string('fname')->nullable()->comment('First Name');
+            $table->string('mname')->nullable()->comment('Middle Name');
+            $table->string('lname')->nullable()->comment('Last Name');
+            
+            // Informasi keanggotaan/akademis
+            $table->string('grade_level')->nullable();
+            $table->string('section')->nullable();
+            $table->string('qr_code')->unique()->nullable();
+            
+            // Kolom relasi yang sudah ada
             $table->rememberToken();
             $table->foreignId('devisi_id')->nullable()->constrained('devisis')->onDelete('set null');
+            
             $table->timestamps();
         });
 
