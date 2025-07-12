@@ -41,7 +41,9 @@
                         @forelse ($devisis as $index => $devisi)
                             <tr>
                                 <td>{{ $index + 1 }}</td>
-                                <td>{{ $devisi->nama_devisi }}</td>
+                                <td>
+                                    <a href="{{ route('admin.devisi.show', $devisi->id) }}">{{ $devisi->nama_devisi }}</a>
+                                </td>
                                 <td>{{ $devisi->pj->name ?? 'Belum ada PJ' }}</td>
                                 <td class="text-center">
                                     <button class="btn btn-sm btn-warning btn-edit"
@@ -129,19 +131,19 @@ document.addEventListener('DOMContentLoaded', function () {
     const editForm = document.getElementById('editDevisiForm');
     const editNamaInput = document.getElementById('edit_nama_devisi');
     const editDeskripsiInput = document.getElementById('edit_deskripsi');
-    const editPjSelect = document.getElementById('edit_pj_id'); // 1. Ambil elemen select
+    const editPjSelect = document.getElementById('edit_pj_id');
 
     editButtons.forEach(button => {
         button.addEventListener('click', function () {
             const id = this.getAttribute('data-id');
             const nama = this.getAttribute('data-nama');
             const deskripsi = this.getAttribute('data-deskripsi');
-            const pj_id = this.getAttribute('data-pj_id'); // 2. Ambil ID PJ saat ini
+            const pj_id = this.getAttribute('data-pj_id');
 
             editForm.action = `/admin/devisi/${id}`;
             editNamaInput.value = nama;
             editDeskripsiInput.value = deskripsi;
-            editPjSelect.value = pj_id; // 3. Set nilai dropdown sesuai ID PJ
+            editPjSelect.value = pj_id;
         });
     });
 });

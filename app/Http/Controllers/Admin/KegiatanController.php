@@ -6,8 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Kegiatan;
 use App\Models\Devisi;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 
 class KegiatanController extends Controller
 {
@@ -17,16 +15,19 @@ class KegiatanController extends Controller
     public function index()
     {
         $kegiatans = Kegiatan::with('devisi')->latest()->paginate(10);
-        $devisis = Devisi::orderBy('nama_devisi', 'asc')->get();
-        return view('admin.kegiatan.index', compact('kegiatans', 'devisis'));
+        return view('admin.kegiatan.index', compact('kegiatans'));
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
-        return redirect()->route('admin.kegiatan.index');
+        $devisis = Devisi::orderBy('nama_devisi')->get();
+        // Ambil devisi_id dari request jika ada (untuk tombol shortcut dari halaman detail devisi)
+        $selectedDevisiId = $request->query('devisi_id');
+
+        return view('admin.kegiatan.create', compact('devisis', 'selectedDevisiId'));
     }
 
     /**
@@ -36,25 +37,25 @@ class KegiatanController extends Controller
     {
         $request->validate([
             'judul' => 'required|string|max:255',
-            'devisi_id' => 'required|exists:devisis,id',
             'deskripsi' => 'required|string',
-            'waktu_mulai' => 'required|date',
-            'waktu_selesai' => 'required|date|after_or_equal:waktu_mulai',
+            'devisi_id' => 'required|exists:devisis,id',
             'tempat' => 'required|string|max:255',
-            'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'waktu_mulai' => 'required|date',
+            'waktu_selesai' => 'nullable|date|after_or_equal:waktu_mulai',
+            'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // Validasi untuk gambar
         ]);
 
-        $data = $request->except('poster');
+        $data = $request->all();
 
         if ($request->hasFile('poster')) {
-            $path = $request->file('poster')->store('public/posters');
-            $data['poster'] = Storage::url($path);
+            // Simpan gambar dan dapatkan path-nya
+            $path = $request->file('poster')->store('posters', 'public');
+            $data['poster'] = $path;
         }
 
         Kegiatan::create($data);
 
-        return redirect()->route('admin.kegiatan.index')
-                         ->with('success', 'Kegiatan baru berhasil ditambahkan!');
+        return redirect()->route('admin.kegiatan.index')->with('success', 'Kegiatan baru berhasil ditambahkan.');
     }
 
     /**
@@ -62,7 +63,8 @@ class KegiatanController extends Controller
      */
     public function show(Kegiatan $kegiatan)
     {
-        return redirect()->route('admin.kegiatan.edit', $kegiatan->id);
+        // Untuk masa depan, kita bisa buat halaman detail kegiatan di sini
+        return redirect()->route('admin.kegiatan.index');
     }
 
     /**
@@ -70,7 +72,7 @@ class KegiatanController extends Controller
      */
     public function edit(Kegiatan $kegiatan)
     {
-        $devisis = Devisi::orderBy('nama_devisi', 'asc')->get();
+        $devisis = Devisi::orderBy('nama_devisi')->get();
         return view('admin.kegiatan.edit', compact('kegiatan', 'devisis'));
     }
 
@@ -81,28 +83,28 @@ class KegiatanController extends Controller
     {
         $request->validate([
             'judul' => 'required|string|max:255',
-            'devisi_id' => 'required|exists:devisis,id',
             'deskripsi' => 'required|string',
-            'waktu_mulai' => 'required|date',
-            'waktu_selesai' => 'required|date|after_or_equal:waktu_mulai',
+            'devisi_id' => 'required|exists:devisis,id',
             'tempat' => 'required|string|max:255',
+            'waktu_mulai' => 'required|date',
+            'waktu_selesai' => 'nullable|date|after_or_equal:waktu_mulai',
             'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        $data = $request->except('poster');
+        $data = $request->all();
 
         if ($request->hasFile('poster')) {
+            // Hapus poster lama jika ada
             if ($kegiatan->poster) {
-                Storage::delete(str_replace('/storage', 'public', $kegiatan->poster));
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($kegiatan->poster);
             }
-            $path = $request->file('poster')->store('public/posters');
-            $data['poster'] = Storage::url($path);
+            $path = $request->file('poster')->store('posters', 'public');
+            $data['poster'] = $path;
         }
 
         $kegiatan->update($data);
 
-        return redirect()->route('admin.kegiatan.index')
-                         ->with('success', 'Kegiatan berhasil diperbarui!');
+        return redirect()->route('admin.kegiatan.index')->with('success', 'Kegiatan berhasil diperbarui.');
     }
 
     /**
@@ -112,13 +114,10 @@ class KegiatanController extends Controller
     {
         // Hapus poster dari storage jika ada
         if ($kegiatan->poster) {
-            Storage::delete(str_replace('/storage', 'public', $kegiatan->poster));
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($kegiatan->poster);
         }
-
-        // Hapus record dari database
+        
         $kegiatan->delete();
-
-        return redirect()->route('admin.kegiatan.index')
-                         ->with('success', 'Kegiatan berhasil dihapus!');
+        return redirect()->route('admin.kegiatan.index')->with('success', 'Kegiatan berhasil dihapus.');
     }
 }

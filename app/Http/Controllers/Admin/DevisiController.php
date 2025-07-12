@@ -11,26 +11,25 @@ use Illuminate\Validation\Rule;
 class DevisiController extends Controller
 {
     /**
-     * Menampilkan halaman manajemen devisi.
-     *
-     * @return \Illuminate\View\View
+     * Display a listing of the resource.
      */
     public function index()
     {
-        // Eager load relasi 'pj' untuk optimasi query (menghindari N+1 problem)
         $devisis = Devisi::with('pj')->latest()->get();
-
-        // Ambil semua user yang memiliki peran 'pj' sebagai calon penanggung jawab
         $calon_pj = User::role('pj')->get();
-
         return view('admin.devisi.index', compact('devisis', 'calon_pj'));
     }
 
     /**
-     * Menyimpan devisi baru ke dalam database.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        //
+    }
+
+    /**
+     * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
@@ -41,16 +40,33 @@ class DevisiController extends Controller
 
         Devisi::create($request->all());
 
-        return redirect()->route('admin.devisi.index')
-                         ->with('success', 'Devisi baru berhasil ditambahkan!');
+        return redirect()->route('admin.devisi.index')->with('success', 'Devisi baru berhasil ditambahkan!');
     }
 
     /**
-     * Mengupdate data devisi yang sudah ada di database.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Devisi  $devisi
-     * @return \Illuminate\Http\RedirectResponse
+     * Display the specified resource.
+     */
+    public function show(Devisi $devisi)
+    {
+        // Eager load relasi untuk efisiensi
+        $devisi->load('pj', 'anggota', 'kegiatan');
+        
+        // Ambil user dengan role 'anggota' yang belum punya devisi
+        $calon_anggota = User::role('anggota')->whereNull('devisi_id')->orderBy('name')->get();
+
+        return view('admin.devisi.show', compact('devisi', 'calon_anggota'));
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Devisi $devisi)
+    {
+        //
+    }
+
+    /**
+     * Update the specified resource in storage.
      */
     public function update(Request $request, Devisi $devisi)
     {
@@ -59,32 +75,60 @@ class DevisiController extends Controller
                 'required',
                 'string',
                 'max:255',
-                // Pastikan nama devisi unik, kecuali untuk devisi yang sedang diedit
                 Rule::unique('devisis')->ignore($devisi->id),
             ],
             'deskripsi' => 'nullable|string',
-            // Pastikan pj_id yang dikirim ada di tabel users
             'pj_id' => 'nullable|exists:users,id',
         ]);
 
-        // Update data devisi dengan data dari request
-        $devisi->update($request->all());
+        $devisi->update([
+            'nama_devisi' => $request->nama_devisi,
+            'deskripsi' => $request->deskripsi,
+            'pj_id' => $request->pj_id,
+        ]);
 
-        return redirect()->route('admin.devisi.index')
-                         ->with('success', 'Data devisi berhasil diperbarui!');
+        return redirect()->route('admin.devisi.index')->with('success', 'Data devisi berhasil diperbarui!');
     }
 
     /**
-     * Menghapus devisi dari database.
-     *
-     * @param  \App\Models\Devisi  $devisi
-     * @return \Illuminate\Http\RedirectResponse
+     * Remove the specified resource from storage.
      */
     public function destroy(Devisi $devisi)
     {
         $devisi->delete();
-
-        return redirect()->route('admin.devisi.index')
-                         ->with('success', 'Devisi berhasil dihapus!');
+        return redirect()->route('admin.devisi.index')->with('success', 'Devisi berhasil dihapus!');
     }
+
+    // --- START OF NEW CODE ---
+    /**
+     * Add a member to the specified devisi.
+     */
+    public function addMember(Request $request, Devisi $devisi)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $user = User::find($request->user_id);
+        $user->devisi_id = $devisi->id;
+        $user->save();
+
+        return back()->with('success', $user->name . ' berhasil ditambahkan ke devisi ' . $devisi->nama_devisi);
+    }
+
+    /**
+     * Remove a member from the specified devisi.
+     */
+    public function removeMember(Request $request, Devisi $devisi, User $user)
+    {
+        // Pastikan user tersebut memang anggota devisi ini
+        if ($user->devisi_id == $devisi->id) {
+            $user->devisi_id = null;
+            $user->save();
+            return back()->with('success', $user->name . ' berhasil dikeluarkan dari devisi.');
+        }
+
+        return back()->with('error', 'Aksi gagal: User bukan anggota devisi ini.');
+    }
+    // --- END OF NEW CODE ---
 }

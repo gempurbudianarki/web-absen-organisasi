@@ -53,7 +53,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
         
+        // --- START OF MODIFIED CODE ---
+        Route::post('devisi/{devisi}/add-member', [DevisiController::class, 'addMember'])->name('devisi.addMember');
+        Route::post('devisi/{devisi}/remove-member/{user}', [DevisiController::class, 'removeMember'])->name('devisi.removeMember');
         Route::resource('devisi', DevisiController::class);
+        // --- END OF MODIFIED CODE ---
 
         Route::get('/absensi', [AbsensiController::class, 'index'])->name('absensi.index');
         Route::get('/absensi/create', [AbsensiController::class, 'create'])->name('absensi.create');
