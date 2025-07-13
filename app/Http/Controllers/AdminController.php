@@ -4,54 +4,63 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
-use App\Models\EmailLog;
 use App\Models\Devisi;
 use App\Models\Kegiatan;
-use App\Models\LearnerAttendance;
-use App\Models\Announcement;
-use Illuminate\Support\Facades\DB;
+use App\Models\Absensi;
+use App\Models\Pengumuman;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
     public function index()
     {
-        // KPI Cards Data
-        $userCount = User::count();
-        $anggotaCount = User::role('anggota')->count(); // Data yang lebih akurat
-        $devisiCount = Devisi::count();
-        $kegiatanCount = Kegiatan::count();
-        $announcementCount = Announcement::count();
-        $mailLogCount = EmailLog::count();
+        // --- Data untuk Kartu Statistik ---
+        $totalUsers = User::count();
+        $totalDevisi = Devisi::count();
+        $totalKegiatan = Kegiatan::count();
+        $totalPengumumanAktif = Pengumuman::aktif()->count();
+
+        // --- Data untuk Grafik Tren Kehadiran ---
+        $startDate = Carbon::now()->subDays(29)->startOfDay();
+        $endDate = Carbon::now()->endOfDay();
         
-        $attendanceTodayCount = LearnerAttendance::whereDate('date', Carbon::today())->count();
-        
-        // Data for Charts
-        $userRoleData = User::select('roles.name as role', DB::raw('count(*) as count'))
-            ->join('model_has_roles', 'users.id', '=', 'model_has_roles.model_id')
-            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
-            ->groupBy('roles.name')
-            ->pluck('count', 'role');
-            
-        $attendanceLabels = [];
-        $attendanceData = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date = Carbon::today()->subDays($i);
-            $attendanceLabels[] = $date->isoFormat('dddd');
-            $attendanceData[] = LearnerAttendance::whereDate('date', $date)->count();
+        $kehadiran = Absensi::where('status', 'hadir')
+            ->whereBetween('waktu_absen', [$startDate, $endDate])
+            ->groupBy('date')
+            ->orderBy('date', 'asc')
+            ->get([
+                DB::raw('DATE(waktu_absen) as date'),
+                DB::raw('COUNT(*) as count')
+            ])
+            ->pluck('count', 'date');
+
+        $dates = collect();
+        for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
+            $dates->put($date->format('Y-m-d'), 0);
         }
 
+        $kehadiranPerHari = $dates->merge($kehadiran);
+
+        $chartLabels = $kehadiranPerHari->keys()->map(function ($date) {
+            return Carbon::parse($date)->format('d M');
+        });
+        $chartData = $kehadiranPerHari->values();
+
+        // --- Data untuk Tabel Kegiatan Akan Datang ---
+        $kegiatanAkanDatang = Kegiatan::where('waktu_mulai', '>=', Carbon::now())
+            ->orderBy('waktu_mulai', 'asc')
+            ->take(5)
+            ->get();
+
         return view('admin.dashboard', compact(
-            'userCount',
-            'anggotaCount', // Mengirim data baru
-            'devisiCount',
-            'kegiatanCount',
-            'announcementCount',
-            'mailLogCount',
-            'attendanceTodayCount',
-            'userRoleData',
-            'attendanceLabels',
-            'attendanceData'
+            'totalUsers',
+            'totalDevisi',
+            'totalKegiatan',
+            'totalPengumumanAktif',
+            'chartLabels',
+            'chartData',
+            'kegiatanAkanDatang'
         ));
     }
 }

@@ -13,11 +13,16 @@ return new class extends Migration
     {
         Schema::create('pengumumans', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->string('judul');
-            $table->text('isi');
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade'); // Siapa yang membuat pengumuman
-            $table->foreignId('devisi_id')->nullable()->constrained('devisis')->onDelete('cascade'); // Untuk menargetkan devisi tertentu, bisa null jika untuk semua
-            $table->timestamp('waktu_publish')->useCurrent();
+            $table->text('isi'); // Konsisten menggunakan 'isi'
+            
+            // --- PERBAIKAN KRUSIAL DI SINI ---
+            $table->enum('target', ['semua', 'devisi'])->default('semua');
+            
+            $table->foreignId('devisi_id')->nullable()->constrained('devisis')->onDelete('cascade');
+            $table->timestamp('publish_at')->nullable()->comment('Waktu mulai tayang');
+            $table->timestamp('expires_at')->nullable()->comment('Waktu berhenti tayang, null berarti selamanya');
             $table->timestamps();
         });
     }

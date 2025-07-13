@@ -6,66 +6,46 @@ use App\Http\Controllers\Controller;
 use App\Models\Pengumuman;
 use App\Models\Devisi;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class PengumumanController extends Controller
 {
-    /**
-     * Menampilkan halaman utama manajemen pengumuman.
-     *
-     * @return \Illuminate\View\View
-     */
     public function index()
     {
-        // Eager load relasi 'user' dan 'devisi' untuk mencegah N+1 query problem.
-        $pengumumans = Pengumuman::with(['user', 'devisi'])->latest()->paginate(5);
-        
-        // Ambil data devisi untuk ditampilkan di dropdown form.
+        $pengumumanAktif = Pengumuman::with('user', 'devisi')->latest()->aktif()->paginate(5, ['*'], 'aktif');
+        $pengumumanRiwayat = Pengumuman::with('user', 'devisi')->latest()->riwayat()->paginate(5, ['*'], 'riwayat');
         $devisis = Devisi::orderBy('nama_devisi')->get();
-        
-        return view('admin.pengumuman.index', compact('pengumumans', 'devisis'));
+
+        return view('admin.pengumuman.index', compact('pengumumanAktif', 'pengumumanRiwayat', 'devisis'));
     }
 
-    /**
-     * Menyimpan pengumuman baru ke database.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse
-     */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'judul' => 'required|string|max:255',
-            'isi' => 'required|string',
-            // Validasi diperketat: devisi_id boleh kosong, tapi jika diisi, harus ada di tabel devisis.
-            'devisi_id' => 'nullable|exists:devisis,id',
+            'isi' => 'required|string', // Menggunakan 'isi'
+            'target' => 'required|in:semua,devisi',
+            'devisi_id' => 'required_if:target,devisi|nullable|exists:devisis,id',
+            'publish_at' => 'required|date',
+            'expires_at' => 'nullable|date|after_or_equal:publish_at',
         ]);
 
-        $pengumuman = Pengumuman::create([
-            'judul' => $request->judul,
-            'isi' => $request->isi,
-            'devisi_id' => $request->devisi_id,
-            'user_id' => Auth::id(), // Mengambil ID admin yang sedang login secara otomatis.
-            'waktu_publish' => now(),
+        Pengumuman::create([
+            'user_id' => auth()->id(),
+            'judul' => $validated['judul'],
+            'isi' => $validated['isi'],
+            'target' => $validated['target'],
+            'devisi_id' => $validated['target'] === 'devisi' ? $validated['devisi_id'] : null,
+            'publish_at' => Carbon::parse($validated['publish_at']),
+            'expires_at' => $validated['expires_at'] ? Carbon::parse($validated['expires_at']) : null,
         ]);
 
-        return redirect()->route('admin.pengumuman.index')
-                         ->with('success', "Pengumuman '{$pengumuman->judul}' berhasil dipublikasikan!");
+        return redirect()->route('admin.pengumuman.index')->with('success', 'Pengumuman berhasil diterbitkan.');
     }
 
-    /**
-     * Menghapus pengumuman dari database.
-     *
-     * @param  \App\Models\Pengumuman  $pengumuman
-     * @return \Illuminate\Http\RedirectResponse
-     */
     public function destroy(Pengumuman $pengumuman)
     {
-        // Otorisasi sederhana sudah ditangani oleh middleware 'role:admin' di level rute.
-        $namaPengumuman = $pengumuman->judul;
         $pengumuman->delete();
-
-        return redirect()->route('admin.pengumuman.index')
-                         ->with('success', "Pengumuman '{$namaPengumuman}' berhasil dihapus.");
+        return redirect()->route('admin.pengumuman.index')->with('success', 'Pengumuman berhasil dihapus.');
     }
 }

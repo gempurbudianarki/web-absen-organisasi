@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class Pengumuman extends Model
 {
@@ -12,36 +13,41 @@ class Pengumuman extends Model
     protected $table = 'pengumumans';
 
     protected $fillable = [
-        'judul',
-        'isi',
         'user_id',
+        'judul',
+        'isi', // Konsisten menggunakan 'isi'
+        'target',
         'devisi_id',
-        'waktu_publish',
+        'publish_at',
+        'expires_at',
     ];
 
-    /**
-     * --- PERBAIKAN DI SINI ---
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
-        'waktu_publish' => 'datetime',
+        'publish_at' => 'datetime',
+        'expires_at' => 'datetime',
     ];
 
-    /**
-     * Mendefinisikan relasi bahwa Pengumuman ini dibuat oleh seorang User.
-     */
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Mendefinisikan relasi bahwa Pengumuman ini bisa ditujukan untuk sebuah Devisi.
-     */
     public function devisi()
     {
         return $this->belongsTo(Devisi::class);
+    }
+
+    public function scopeAktif($query)
+    {
+        return $query->where('publish_at', '<=', Carbon::now())
+                     ->where(function ($q) {
+                         $q->where('expires_at', '>=', Carbon::now())
+                           ->orWhereNull('expires_at');
+                     });
+    }
+
+    public function scopeRiwayat($query)
+    {
+        return $query->where('expires_at', '<', Carbon::now());
     }
 }

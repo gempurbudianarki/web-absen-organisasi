@@ -83,6 +83,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
         Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+        // --- PERBAIKAN DI SINI ---
+        Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
         
         // Registrasi oleh Admin
         Route::get('/register-user', [RegisterController::class, 'showAdminRegisterForm'])->name('register.form');

@@ -1,41 +1,41 @@
 <section>
-    <div class="mb-4">
-        <h4 class="fw-bold">{{ __('Delete Account') }}</h4>
+    <header>
+        <h5 class="fw-bold text-danger">{{ __('Hapus Akun') }}</h5>
         <p class="text-muted small">
-            {{ __('Once your account is deleted, all of its resources and data will be permanently deleted. Before deleting your account, please download any data or information that you wish to retain.') }}
+            {{ __('Setelah akun Anda dihapus, semua sumber daya dan datanya akan dihapus secara permanen. Sebelum menghapus, harap unduh data atau informasi apa pun yang ingin Anda simpan.') }}
         </p>
-    </div>
+    </header>
 
-    <!-- Delete Button to Trigger Modal -->
-    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
-        {{ __('Delete Account') }}
+    <button type="button" class="btn btn-danger w-100 mt-3" data-bs-toggle="modal" data-bs-target="#confirmUserDeletionModal">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ __('Hapus Akun') }}
     </button>
 
-    <!-- Delete Confirmation Modal -->
-    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+    <div class="modal fade" id="confirmUserDeletionModal" tabindex="-1" aria-labelledby="confirmUserDeletionModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border border-danger rounded-4 shadow">
-                <form method="POST" action="{{ route('admin.profile.destroy') }}">
+            <div class="modal-content">
+                <form method="post" action="{{ route('admin.profile.destroy') }}">
                     @csrf
-                    @method('DELETE')
+                    @method('delete')
 
                     <div class="modal-header bg-danger text-white">
-                        <h5 class="modal-title" id="confirmDeleteModalLabel">{{ __('Confirm Account Deletion') }}</h5>
+                        <h5 class="modal-title" id="confirmUserDeletionModalLabel">{{ __('Konfirmasi Penghapusan Akun') }}</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
 
                     <div class="modal-body">
-                        <p class="mb-3">
-                            {{ __('Once your account is deleted, all of its resources and data will be permanently deleted. Please enter your password to confirm.') }}
+                        <p>
+                            {{ __('Apakah Anda yakin ingin menghapus akun Anda? Setelah akun dihapus, semua datanya akan hilang selamanya. Masukkan password Anda untuk mengonfirmasi.') }}
                         </p>
 
-                        <div class="mb-3">
-                            <label for="delete_password" class="form-label">{{ __('Password') }}</label>
-                            <input type="password"
-                                   id="delete_password"
-                                   name="password"
-                                   class="form-control @error('password', 'userDeletion') is-invalid @enderror"
-                                   placeholder="{{ __('Enter your password') }}">
+                        <div class="mt-3">
+                            <label for="password_delete" class="form-label">{{ __('Password') }}</label>
+                            <input
+                                id="password_delete"
+                                name="password"
+                                type="password"
+                                class="form-control @error('password', 'userDeletion') is-invalid @enderror"
+                                placeholder="{{ __('Masukkan password Anda') }}"
+                            />
                             @error('password', 'userDeletion')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -43,11 +43,9 @@
                     </div>
 
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                            {{ __('Cancel') }}
-                        </button>
-                        <button type="submit" class="btn btn-danger">
-                            {{ __('Delete Account') }}
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Batal') }}</button>
+                        <button type="submit" class="btn btn-danger ms-3">
+                            {{ __('Hapus Akun') }}
                         </button>
                     </div>
                 </form>

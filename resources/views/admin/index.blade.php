@@ -1,123 +1,94 @@
 @extends('layouts.admin')
 
-@section('title', 'Laporan Absensi')
+@section('title', 'Manajemen Pengumuman')
+
+@push('styles')
+{{-- Tambahkan style untuk Flatpickr jika belum ada di layout utama --}}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+@endpush
 
 @section('content')
 <div class="container-fluid">
-    {{-- Page Header --}}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="mb-0">
-            <i class="bi bi-journal-text me-2"></i>
-            Laporan Absensi
+            <i class="bi bi-megaphone-fill me-2"></i>
+            Manajemen Pengumuman
         </h4>
-        <div class="d-flex gap-2">
-            <button class="btn btn-success">
-                <i class="bi bi-file-earmark-excel-fill me-1"></i>
-                Ekspor ke Excel
-            </button>
-            <a href="{{ route('admin.absensi.create') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle-fill me-1"></i>
-                Tambah Absensi Manual
-            </a>
-        </div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPengumumanModal">
+            <i class="bi bi-plus-circle-fill me-1"></i> Buat Pengumuman Baru
+        </button>
     </div>
 
-    {{-- Filter Card --}}
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h5 class="card-title mb-3">Filter Data</h5>
-            <form method="GET" action="{{ route('admin.absensi.index') }}" class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label for="start_date" class="form-label">Tanggal Mulai</label>
-                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ $startDate }}">
-                </div>
-                <div class="col-md-3">
-                    <label for="end_date" class="form-label">Tanggal Selesai</label>
-                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ $endDate }}">
-                </div>
-                <div class="col-md-3">
-                    <label for="devisi_id" class="form-label">Devisi</label>
-                    <select class="form-select" id="devisi_id" name="devisi_id">
-                        <option value="">Semua Devisi</option>
-                        @foreach ($devisis as $devisi)
-                            <option value="{{ $devisi->id }}" {{ $selectedDevisiId == $devisi->id ? 'selected' : '' }}>
-                                {{ $devisi->nama_devisi }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="user_id" class="form-label">Anggota</label>
-                    <select class="form-select" id="user_id" name="user_id">
-                        <option value="">Semua Anggota</option>
-                        @foreach ($users as $user)
-                            <option value="{{ $user->id }}" {{ $selectedUserId == $user->id ? 'selected' : '' }}>
-                                {{ $user->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-12 text-end">
-                    <a href="{{ route('admin.absensi.index') }}" class="btn btn-secondary">
-                        <i class="bi bi-arrow-repeat me-1"></i> Reset Filter
-                    </a>
-                    <button type="submit" class="btn btn-info">
-                        <i class="bi bi-search me-1"></i> Terapkan Filter
+    {{-- Notifikasi --}}
+    @if (session('success'))
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>{{ session('success') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    @endif
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white p-0 border-0">
+            {{-- Navigasi Tab --}}
+            <ul class="nav nav-tabs nav-fill" id="pengumumanTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="aktif-tab" data-bs-toggle="tab" data-bs-target="#aktif-tab-pane" type="button" role="tab" aria-controls="aktif-tab-pane" aria-selected="true">
+                        <i class="bi bi-broadcast me-1"></i> Pengumuman Aktif 
+                        <span class="badge bg-success rounded-pill">{{ $pengumumanAktif->count() }}</span>
                     </button>
-                </div>
-            </form>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="riwayat-tab" data-bs-toggle="tab" data-bs-target="#riwayat-tab-pane" type="button" role="tab" aria-controls="riwayat-tab-pane" aria-selected="false">
+                        <i class="bi bi-archive-fill me-1"></i> Riwayat Pengumuman 
+                        <span class="badge bg-secondary rounded-pill">{{ $pengumumanRiwayat->count() }}</span>
+                    </button>
+                </li>
+            </ul>
         </div>
-    </div>
-
-    {{-- Attendance Table Card --}}
-    <div class="card shadow-sm">
         <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>#</th>
-                            <th>Nama Anggota</th>
-                            <th>Devisi</th>
-                            <th>Tanggal</th>
-                            <th>Jam Masuk Pagi</th>
-                            <th>Jam Pulang Pagi</th>
-                            <th>Jam Masuk Siang</th>
-                            <th>Jam Pulang Siang</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($absensiLogs as $log)
-                            <tr>
-                                <td>{{ $loop->iteration + $absensiLogs->firstItem() - 1 }}</td>
-                                {{-- START OF MODIFIED CODE --}}
-                                <td>{{ $log->user->name ?? 'User Not Found' }}</td>
-                                <td>{{ $log->user->devisi->nama_devisi ?? 'Belum ada devisi' }}</td>
-                                {{-- END OF MODIFIED CODE --}}
-                                <td>{{ \Carbon\Carbon::parse($log->date)->isoFormat('dddd, D MMMM Y') }}</td>
-                                <td>{{ $log->am_in ? \Carbon\Carbon::parse($log->am_in)->format('H:i') : '-' }}</td>
-                                <td>{{ $log->am_out ? \Carbon\Carbon::parse($log->am_out)->format('H:i') : '-' }}</td>
-                                <td>{{ $log->pm_in ? \Carbon\Carbon::parse($log->pm_in)->format('H:i') : '-' }}</td>
-                                <td>{{ $log->pm_out ? \Carbon\Carbon::parse($log->pm_out)->format('H:i') : '-' }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="8" class="text-center text-muted py-4">
-                                    Tidak ada data absensi untuk rentang tanggal yang dipilih.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            
-            {{-- Pagination --}}
-            @if ($absensiLogs->hasPages())
-                <div class="mt-4">
-                    {{ $absensiLogs->appends(request()->query())->links() }}
+            <div class="tab-content" id="pengumumanTabContent">
+                {{-- Konten Tab Aktif --}}
+                <div class="tab-pane fade show active" id="aktif-tab-pane" role="tabpanel" aria-labelledby="aktif-tab">
+                    @include('admin.pengumuman.partials.table', ['pengumuman' => $pengumumanAktif, 'type' => 'aktif'])
                 </div>
-            @endif
+                {{-- Konten Tab Riwayat --}}
+                <div class="tab-pane fade" id="riwayat-tab-pane" role="tabpanel" aria-labelledby="riwayat-tab">
+                    @include('admin.pengumuman.partials.table', ['pengumuman' => $pengumumanRiwayat, 'type' => 'riwayat'])
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+@include('admin.pengumuman.partials.create-modal')
 @endsection
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Inisialisasi Flatpickr untuk input tanggal
+        flatpickr("#publish_at", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            minDate: "today",
+        });
+        flatpickr("#expires_at", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            minDate: "today",
+        });
+
+        // Logika untuk menampilkan/menyembunyikan pilihan devisi
+        const targetSelect = document.getElementById('target');
+        const devisiSelectDiv = document.getElementById('devisiSelectDiv');
+        targetSelect.addEventListener('change', function() {
+            if (this.value === 'devisi') {
+                devisiSelectDiv.style.display = 'block';
+            } else {
+                devisiSelectDiv.style.display = 'none';
+            }
+        });
+    });
+</script>
+@endpush

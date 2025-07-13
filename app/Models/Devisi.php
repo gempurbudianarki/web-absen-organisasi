@@ -10,6 +10,12 @@ class Devisi extends Model
     use HasFactory;
 
     /**
+     * --- PERBAIKAN DI SINI ---
+     * Secara eksplisit mendefinisikan nama tabel untuk menghindari ambiguitas.
+     */
+    protected $table = 'devisis';
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>

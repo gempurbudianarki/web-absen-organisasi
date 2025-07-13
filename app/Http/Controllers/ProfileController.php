@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
+use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller
 {
@@ -53,13 +53,15 @@ class ProfileController extends Controller
 
     public function updatePassword(Request $request): RedirectResponse
     {
-        $request->validateWithBag('updatePassword', [
+        $validated = $request->validateWithBag('updatePassword', [
             'current_password' => ['required', 'current_password'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'password' => ['required', Password::defaults(), 'confirmed'],
         ]);
 
+        // --- PERBAIKAN DI SINI ---
+        // Hapus Hash::make() dan biarkan model yang melakukan hashing secara otomatis.
         $request->user()->update([
-            'password' => Hash::make($request->password),
+            'password' => $validated['password'],
         ]);
 
         $route = $request->routeIs('admin.profile.password') ? 'admin.profile.edit' : 'profile.edit';
