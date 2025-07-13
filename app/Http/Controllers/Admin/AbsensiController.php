@@ -2,103 +2,152 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\AbsensiExport;
 use App\Http\Controllers\Controller;
-use App\Models\LearnerAttendance;
-use App\Models\User;
+use App\Models\Absensi;
 use App\Models\Devisi;
+use App\Models\Kegiatan;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class AbsensiController extends Controller
 {
-    /**
-     * Display the attendance report page.
-     */
     public function index(Request $request)
     {
-        // Set default date range to today
-        $startDate = $request->input('start_date', Carbon::today()->toDateString());
-        $endDate = $request->input('end_date', Carbon::today()->toDateString());
-        $selectedUserId = $request->input('user_id');
+        $startDate = $request->input('start_date', Carbon::now()->subDays(6)->toDateString());
+        $endDate = $request->input('end_date', Carbon::now()->toDateString());
+        $selectedKegiatanId = $request->input('kegiatan_id');
         $selectedDevisiId = $request->input('devisi_id');
 
-        // --- START OF MODIFIED CODE ---
+        $query = Absensi::with(['user.devisi', 'kegiatan'])
+            ->whereBetween('waktu_absen', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
 
-        // Query now uses the 'user' relationship defined in LearnerAttendance model
-        $query = LearnerAttendance::with(['user.devisi'])
-            ->whereBetween('date', [$startDate, $endDate]);
-
-        // Apply filter by specific user if selected
-        if ($selectedUserId) {
-            // The relationship is now direct via 'learner_id' which points to users table
-            $query->where('learner_id', $selectedUserId);
+        if ($selectedDevisiId) {
+            $query->whereHas('user', fn($q) => $q->where('devisi_id', $selectedDevisiId));
+        }
+        if ($selectedKegiatanId) {
+            $query->where('kegiatan_id', $selectedKegiatanId);
         }
 
-        // Apply filter by devisi if selected
-        if ($selectedDevisiId) {
-            $query->whereHas('user.devisi', function ($q) use ($selectedDevisiId) {
-                $q->where('id', $selectedDevisiId);
-            });
+        $statsQuery = clone $query;
+        $stats = $statsQuery->select('status', DB::raw('count(*) as total'))
+                            ->groupBy('status')
+                            ->pluck('total', 'status');
+
+        $totalHadir = $stats->get('hadir', 0);
+        $totalIzin = $stats->get('izin', 0);
+        $totalSakit = $stats->get('sakit', 0);
+        $totalAlpa = $stats->get('alpa', 0);
+        $totalAbsen = $stats->sum();
+        $persentaseKehadiran = ($totalAbsen > 0) ? round((($totalHadir + $totalIzin + $totalSakit) / $totalAbsen) * 100, 1) : 0;
+
+        $trendQuery = clone $query;
+        $attendanceTrend = $trendQuery
+            ->whereIn('status', ['hadir', 'izin', 'sakit'])
+            ->select(DB::raw('DATE(waktu_absen) as date'), DB::raw('count(*) as count'))
+            ->groupBy('date')
+            ->orderBy('date', 'asc')
+            ->get()
+            ->pluck('count', 'date');
+
+        $trendLabels = [];
+        $trendData = [];
+        $period = Carbon::parse($startDate)->toPeriod($endDate);
+        foreach ($period as $date) {
+            $formattedDate = $date->format('Y-m-d');
+            $trendLabels[] = $date->isoFormat('D MMM');
+            $trendData[] = $attendanceTrend->get($formattedDate, 0);
         }
         
-        // --- END OF MODIFIED CODE ---
+        $absensiLogs = $query->latest('waktu_absen')->paginate(20);
 
-        // Paginate the results
-        $absensiLogs = $query->latest('date')->paginate(15);
-
-        // Get data for filter dropdowns
-        $users = User::role('anggota')->orderBy('name')->get();
         $devisis = Devisi::orderBy('nama_devisi')->get();
+        $kegiatans = Kegiatan::orderBy('judul')->get();
 
-        // Pass data to the view
-        return view('admin.absensi.index', [
-            'absensiLogs' => $absensiLogs,
-            'startDate' => $startDate,
-            'endDate' => $endDate,
-            'users' => $users,
-            'devisis' => $devisis,
-            'selectedUserId' => $selectedUserId,
-            'selectedDevisiId' => $selectedDevisiId,
-        ]);
+        return view('admin.absensi.index', compact(
+            'absensiLogs', 'startDate', 'endDate', 'devisis', 'kegiatans',
+            'selectedDevisiId', 'selectedKegiatanId',
+            'totalHadir', 'totalIzin', 'totalSakit', 'totalAlpa', 'persentaseKehadiran',
+            'trendLabels', 'trendData'
+        ));
     }
-    
-    /**
-     * Show the form for creating a new attendance record.
-     */
+
     public function create()
     {
-        // We now fetch users with the 'anggota' role for the dropdown
+        $kegiatans = Kegiatan::where('waktu_mulai', '>=', now()->subDays(30))->orderBy('waktu_mulai', 'desc')->get();
         $users = User::role('anggota')->orderBy('name')->get();
-        return view('admin.absensi.create', ['learners' => $users]); // Pass as 'learners' for now to match view
+        return view('admin.absensi.create', compact('kegiatans', 'users'));
     }
 
-    /**
-     * Store a newly created attendance record in storage.
-     */
     public function store(Request $request)
     {
         $request->validate([
-            'learner_id' => 'required|exists:users,id', // Validate against users table
-            'date' => 'required|date',
-            'am_in' => 'nullable|date_format:H:i',
-            'am_out' => 'nullable|date_format:H:i',
-            'pm_in' => 'nullable|date_format:H:i',
-            'pm_out' => 'nullable|date_format:H:i',
+            'kegiatan_id' => 'required|exists:kegiatans,id',
+            'user_id' => 'required|exists:users,id',
+            'status' => 'required|in:hadir,izin,sakit,alpa',
+            'keterangan' => 'nullable|string|max:255',
+            'waktu_absen' => 'required|date',
         ]);
+        
+        $existing = Absensi::where('kegiatan_id', $request->kegiatan_id)->where('user_id', $request->user_id)->first();
+        if ($existing) {
+            return back()->with('error', 'Anggota ini sudah memiliki catatan absensi untuk kegiatan tersebut.');
+        }
 
-        LearnerAttendance::updateOrCreate(
-            [
-                'learner_id' => $request->learner_id, // This column now correctly points to a user's ID
-                'date' => $request->date,
-            ],
-            [
-                'am_in' => $request->am_in,
-                'am_out' => $request->am_out,
-                'pm_in' => $request->pm_in,
-                'pm_out' => $request->pm_out,
-            ]
-        );
-
+        Absensi::create($request->all());
         return redirect()->route('admin.absensi.index')->with('success', 'Data absensi manual berhasil disimpan.');
+    }
+
+    public function show(Kegiatan $kegiatan)
+    {
+        $absensi = Absensi::where('kegiatan_id', $kegiatan->id)->with('user')->get();
+        $absenUserIds = $absensi->pluck('user_id')->toArray();
+        $peserta = User::role('anggota')->whereNotIn('id', $absenUserIds)->orderBy('name')->get();
+        return view('admin.absensi.show', compact('kegiatan', 'absensi', 'peserta'));
+    }
+    
+    public function qr(Kegiatan $kegiatan)
+    {
+        $qrData = json_encode(['kegiatan_id' => $kegiatan->id]);
+        $qrCode = QrCode::size(300)->margin(10)->generate($qrData);
+        return view('admin.absensi.qr_display', compact('kegiatan', 'qrCode'));
+    }
+
+    public function destroy(Absensi $absensi)
+    {
+        $absensi->delete();
+        return back()->with('success', 'Data absensi berhasil dihapus.');
+    }
+
+    /**
+     * Menangani permintaan ekspor data absensi ke Excel.
+     */
+    public function export(Request $request)
+    {
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        $selectedKegiatanId = $request->input('kegiatan_id');
+        $selectedDevisiId = $request->input('devisi_id');
+
+        $query = Absensi::with(['user.devisi', 'kegiatan']);
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('waktu_absen', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        }
+        if ($selectedDevisiId) {
+            $query->whereHas('user', fn($q) => $q->where('devisi_id', $selectedDevisiId));
+        }
+        if ($selectedKegiatanId) {
+            $query->where('kegiatan_id', $selectedKegiatanId);
+        }
+        
+        $query->latest('waktu_absen');
+        $fileName = 'Laporan_Absensi_LDK_' . Carbon::now()->format('Y-m-d') . '.xlsx';
+
+        return Excel::download(new AbsensiExport($query), $fileName);
     }
 }

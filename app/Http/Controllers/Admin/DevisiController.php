@@ -6,30 +6,34 @@ use App\Http\Controllers\Controller;
 use App\Models\Devisi;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class DevisiController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Menampilkan daftar semua devisi beserta data untuk form.
      */
     public function index()
     {
-        $devisis = Devisi::with('pj')->latest()->get();
-        $calon_pj = User::role('pj')->get();
+        $devisis = Devisi::withCount('anggota')->with('pj')->latest()->get();
+
+        // Mengambil user yang bisa menjadi PJ:
+        // - Memiliki role 'anggota' ATAU
+        // - Memiliki role 'pj' tapi belum ditugaskan ke devisi manapun (tidak punya devisiYangDipimpin)
+        $calon_pj = User::where(function ($query) {
+            $query->whereHas('roles', fn ($q) => $q->where('name', 'anggota'))
+                  ->orWhere(function ($subQuery) {
+                      $subQuery->whereHas('roles', fn ($q) => $q->where('name', 'pj'))
+                               ->doesntHave('devisiYangDipimpin');
+                  });
+        })->orderBy('name')->get();
+
         return view('admin.devisi.index', compact('devisis', 'calon_pj'));
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
+     * Menyimpan devisi baru ke dalam database.
      */
     public function store(Request $request)
     {
@@ -44,64 +48,79 @@ class DevisiController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * Menampilkan halaman detail untuk sebuah devisi.
      */
     public function show(Devisi $devisi)
     {
-        // Eager load relasi untuk efisiensi
         $devisi->load('pj', 'anggota', 'kegiatan');
         
-        // Ambil user dengan role 'anggota' yang belum punya devisi
+        // Mengambil calon anggota: user dengan role 'anggota' yang belum punya devisi.
         $calon_anggota = User::role('anggota')->whereNull('devisi_id')->orderBy('name')->get();
 
         return view('admin.devisi.show', compact('devisi', 'calon_anggota'));
     }
 
     /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Devisi $devisi)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
+     * Mengupdate data devisi, termasuk menunjuk PJ baru secara atomik.
      */
     public function update(Request $request, Devisi $devisi)
     {
         $request->validate([
-            'nama_devisi' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('devisis')->ignore($devisi->id),
-            ],
+            'nama_devisi' => ['required', 'string', 'max:255', Rule::unique('devisis')->ignore($devisi->id)],
             'deskripsi' => 'nullable|string',
             'pj_id' => 'nullable|exists:users,id',
         ]);
 
-        $devisi->update([
-            'nama_devisi' => $request->nama_devisi,
-            'deskripsi' => $request->deskripsi,
-            'pj_id' => $request->pj_id,
-        ]);
+        DB::transaction(function () use ($request, $devisi) {
+            $oldPjId = $devisi->pj_id;
+            $newPjId = $request->pj_id;
+
+            // Update informasi dasar devisi
+            $devisi->update($request->only('nama_devisi', 'deskripsi', 'pj_id'));
+
+            // Jika ada perubahan PJ
+            if ($oldPjId !== $newPjId) {
+                // 1. Copot role PJ lama (jika ada)
+                if ($oldPjId && $oldPj = User::find($oldPjId)) {
+                    $oldPj->removeRole('pj');
+                    $oldPj->assignRole('anggota');
+                }
+                // 2. Berikan role PJ ke user baru (jika ada)
+                if ($newPjId && $newPj = User::find($newPjId)) {
+                    $newPj->removeRole('anggota');
+                    $newPj->assignRole('pj');
+                }
+            }
+        });
 
         return redirect()->route('admin.devisi.index')->with('success', 'Data devisi berhasil diperbarui!');
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Menghapus devisi beserta relasinya secara aman.
      */
     public function destroy(Devisi $devisi)
     {
-        $devisi->delete();
+        DB::transaction(function () use ($devisi) {
+            // 1. Lepaskan semua anggota dari devisi ini
+            User::where('devisi_id', $devisi->id)->update(['devisi_id' => null]);
+
+            // 2. Jika ada PJ, copot rolenya
+            if ($devisi->pj) {
+                $pj = $devisi->pj;
+                $pj->removeRole('pj');
+                $pj->assignRole('anggota');
+            }
+            
+            // 3. Hapus devisi
+            $devisi->delete();
+        });
+
         return redirect()->route('admin.devisi.index')->with('success', 'Devisi berhasil dihapus!');
     }
 
-    // --- START OF NEW CODE ---
     /**
-     * Add a member to the specified devisi.
+     * Menambahkan anggota ke dalam devisi.
      */
     public function addMember(Request $request, Devisi $devisi)
     {
@@ -110,6 +129,11 @@ class DevisiController extends Controller
         ]);
 
         $user = User::find($request->user_id);
+
+        if ($user->devisi_id) {
+             return back()->with('error', $user->name . ' sudah terdaftar di devisi lain.');
+        }
+
         $user->devisi_id = $devisi->id;
         $user->save();
 
@@ -117,11 +141,10 @@ class DevisiController extends Controller
     }
 
     /**
-     * Remove a member from the specified devisi.
+     * Mengeluarkan anggota dari devisi.
      */
     public function removeMember(Request $request, Devisi $devisi, User $user)
     {
-        // Pastikan user tersebut memang anggota devisi ini
         if ($user->devisi_id == $devisi->id) {
             $user->devisi_id = null;
             $user->save();
@@ -130,5 +153,4 @@ class DevisiController extends Controller
 
         return back()->with('error', 'Aksi gagal: User bukan anggota devisi ini.');
     }
-    // --- END OF NEW CODE ---
 }

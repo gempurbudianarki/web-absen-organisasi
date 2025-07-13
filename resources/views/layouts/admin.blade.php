@@ -50,8 +50,9 @@
         </a>
       </li>
       
+      {{-- --- PERBAIKAN DI SINI --- --}}
       <li class="nav-item mb-1">
-        <a href="{{ route('users.index') }}" class="menu-item nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" data-tooltip="Manajemen User">
+        <a href="{{ route('admin.users.index') }}" class="menu-item nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}" data-tooltip="Manajemen User">
           <i class="bi bi-people-fill me-2"></i><span>Manajemen User</span>
         </a>
       </li>
@@ -63,7 +64,7 @@
       </li>
       
       <li class="nav-item mb-1">
-          <a href="#" class="menu-item nav-link" data-tooltip="Manajemen Kegiatan">
+          <a href="{{ route('admin.kegiatan.index') }}" class="menu-item nav-link {{ request()->routeIs('admin.kegiatan.*') ? 'active' : '' }}" data-tooltip="Manajemen Kegiatan">
               <i class="bi bi-calendar-event-fill me-2"></i><span>Manajemen Kegiatan</span>
           </a>
       </li>
@@ -73,17 +74,16 @@
               <i class="bi bi-journal-text me-2"></i><span>Manajemen Absensi</span>
           </a>
       </li>
-
+      
+      {{-- --- DAN PERBAIKAN DI SINI --- --}}
       <li class="nav-item mb-1">
           <a class="menu-item nav-link d-flex justify-content-between align-items-center" data-bs-toggle="collapse" href="#announcementSubmenu" role="button" data-tooltip="Pengumuman">
               <span><i class="bi bi-megaphone-fill me-2"></i>Pengumuman</span>
               <i class="bi bi-chevron-down small"></i>
           </a>
-          <div class="collapse {{ request()->routeIs('admin.announcements.*') ? 'show' : '' }}" id="announcementSubmenu">
+          <div class="collapse {{ request()->routeIs('admin.pengumuman.*') ? 'show' : '' }}" id="announcementSubmenu">
               <ul class="nav flex-column ms-4">
-                  <li><a href="{{ route('admin.announcements.index') }}" class="nav-link text-white-50">Tulis Pengumuman</a></li>
-                  <li><a href="{{ route('admin.announcements.sendForm') }}" class="nav-link text-white-50">Kirim ke Grup</a></li>
-                  <li><a href="{{ route('admin.announcements.logs') }}" class="nav-link text-white-50">Riwayat Pengiriman</a></li>
+                  <li><a href="{{ route('admin.pengumuman.index') }}" class="nav-link text-white-50">Tulis Pengumuman</a></li>
               </ul>
           </div>
       </li>

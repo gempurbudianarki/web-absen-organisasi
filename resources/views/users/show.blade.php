@@ -17,7 +17,8 @@
             <i class="bi bi-person-badge-fill me-2"></i>
             Profil Pengguna
         </h4>
-        <a href="{{ route('users.index') }}" class="btn btn-secondary">
+        {{-- --- PERBAIKAN DI SINI --- --}}
+        <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">
             <i class="bi bi-arrow-left me-1"></i>
             Kembali ke Daftar User
         </a>
@@ -100,7 +101,7 @@
 <div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form action="{{ route('users.reset_password', $user->id) }}" method="POST">
+            <form action="{{ route('admin.users.reset_password', $user->id) }}" method="POST">
                 @csrf
                 <div class="modal-header">
                     <h5 class="modal-title" id="resetPasswordModalLabel">Reset Password untuk {{ $user->name }}</h5>

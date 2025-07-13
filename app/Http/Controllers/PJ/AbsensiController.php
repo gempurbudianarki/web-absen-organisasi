@@ -8,29 +8,26 @@ use App\Models\Kegiatan;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class AbsensiController extends Controller
 {
     /**
-     * Display the specified resource.
+     * Menampilkan halaman kelola absensi untuk sebuah kegiatan.
      */
     public function show($kegiatan_id)
     {
         $kegiatan = Kegiatan::findOrFail($kegiatan_id);
-        $devisiPJ = Auth::user()->devisiYangDipimpin;
-
-        if (!$devisiPJ || $kegiatan->devisi_id !== $devisiPJ->id) {
-            abort(403, 'AKSI TIDAK DIIZINKAN.');
-        }
+        $this->authorize('manage', $kegiatan); // Otorisasi
 
         $absensi = Absensi::where('kegiatan_id', $kegiatan->id)->with('user')->get();
         $absenUserIds = $absensi->pluck('user_id')->toArray();
 
-        $peserta = User::where('devisi_id', $devisiPJ->id)
+        $peserta = User::role('anggota')
+                       ->where('devisi_id', $kegiatan->devisi_id)
                        ->whereNotIn('id', $absenUserIds)
-                       ->role('anggota')
                        ->orderBy('name')
                        ->get();
 
@@ -38,16 +35,12 @@ class AbsensiController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Menyimpan data absensi manual oleh PJ.
      */
     public function store(Request $request)
     {
         $kegiatan = Kegiatan::findOrFail($request->kegiatan_id);
-        $devisiPJ = Auth::user()->devisiYangDipimpin;
-
-        if (!$devisiPJ || $kegiatan->devisi_id !== $devisiPJ->id) {
-            abort(403, 'AKSI TIDAK DIIZINKAN.');
-        }
+        $this->authorize('manage', $kegiatan); // Otorisasi
 
         $request->validate([
             'kegiatan_id' => 'required|exists:kegiatans,id',
@@ -56,25 +49,27 @@ class AbsensiController extends Controller
                 Rule::unique('absensis')->where('kegiatan_id', $request->kegiatan_id),
             ],
             'status' => 'required|in:hadir,izin,sakit',
+            'keterangan' => 'nullable|string|max:255',
         ], ['user_id.unique' => 'Anggota ini sudah diabsen.']);
 
-        Absensi::create($request->all());
+        Absensi::create([
+            'kegiatan_id' => $request->kegiatan_id,
+            'user_id' => $request->user_id,
+            'status' => $request->status,
+            'keterangan' => $request->keterangan,
+            'waktu_absen' => now(),
+        ]);
 
         return redirect()->route('pj.absensi.show', $request->kegiatan_id)
                          ->with('success', 'Kehadiran berhasil dicatat!');
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Menghapus data absensi.
      */
     public function destroy(Absensi $absensi)
     {
-        $kegiatan = $absensi->kegiatan;
-        $devisiPJ = Auth::user()->devisiYangDipimpin;
-
-        if (!$devisiPJ || $kegiatan->devisi_id !== $devisiPJ->id) {
-            abort(403, 'AKSI TIDAK DIIZINKAN.');
-        }
+        $this->authorize('manage', $absensi->kegiatan); // Otorisasi
         
         $kegiatan_id = $absensi->kegiatan_id;
         $absensi->delete();
@@ -84,20 +79,62 @@ class AbsensiController extends Controller
     }
 
     /**
-     * Generate atau re-generate kode absensi untuk kegiatan.
+     * Generate atau re-generate "Password Sesi" untuk kegiatan.
      */
     public function generateCode(Kegiatan $kegiatan)
     {
-        $devisiPJ = Auth::user()->devisiYangDipimpin;
-        if (!$devisiPJ || $kegiatan->devisi_id !== $devisiPJ->id) {
-            abort(403, 'AKSI TIDAK DIIZINKAN.');
-        }
+        $this->authorize('manage', $kegiatan); // Otorisasi
 
-        // Generate kode unik 8 karakter (huruf besar, angka, tanpa simbol)
         $kegiatan->kode_absensi = Str::upper(Str::random(8));
         $kegiatan->save();
 
         return redirect()->route('pj.absensi.show', $kegiatan->id)
-                         ->with('success', 'Kode absensi baru berhasil dibuat!');
+                         ->with('success', 'Password Sesi berhasil dibuat!');
+    }
+
+    /**
+     * --- FITUR BARU ---
+     * Menutup sesi dan menandai semua anggota yang belum absen sebagai 'alpa'.
+     */
+    public function closeAndMarkAbsentees(Kegiatan $kegiatan)
+    {
+        $this->authorize('manage', $kegiatan);
+
+        DB::transaction(function () use ($kegiatan) {
+            // 1. Dapatkan semua ID anggota devisi ini
+            $semuaAnggotaIds = User::role('anggota')
+                ->where('devisi_id', $kegiatan->devisi_id)
+                ->pluck('id');
+
+            // 2. Dapatkan semua ID anggota yang sudah punya record absensi
+            $sudahAbsenIds = Absensi::where('kegiatan_id', $kegiatan->id)
+                ->pluck('user_id');
+
+            // 3. Cari anggota yang belum absen (alpa)
+            $alpaIds = $semuaAnggotaIds->diff($sudahAbsenIds);
+
+            $dataToInsert = [];
+            $now = now();
+
+            foreach ($alpaIds as $userId) {
+                $dataToInsert[] = [
+                    'kegiatan_id' => $kegiatan->id,
+                    'user_id' => $userId,
+                    'status' => 'alpa',
+                    'keterangan' => 'Tidak ada konfirmasi kehadiran.',
+                    'waktu_absen' => $now,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+
+            // 4. Masukkan semua data 'alpa' sekaligus untuk efisiensi
+            if (!empty($dataToInsert)) {
+                Absensi::insert($dataToInsert);
+            }
+        });
+
+        return redirect()->route('pj.absensi.show', $kegiatan->id)
+                         ->with('success', 'Sesi telah ditutup dan anggota yang tidak hadir telah ditandai sebagai Alpa.');
     }
 }

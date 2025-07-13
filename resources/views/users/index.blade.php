@@ -20,7 +20,8 @@
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <h5 class="card-title mb-3">Filter Users</h5>
-            <form method="GET" action="{{ route('users.index') }}" class="row g-3 align-items-end">
+            {{-- --- PERBAIKAN DI SINI --- --}}
+            <form method="GET" action="{{ route('admin.users.index') }}" class="row g-3 align-items-end">
                 <div class="col-md-5">
                     <label for="role" class="form-label">Berdasarkan Role</label>
                     <select name="role" id="role" class="form-select">
@@ -46,7 +47,7 @@
         </div>
     </div>
 
-    <form action="{{ route('users.bulk_action') }}" method="POST" id="bulkActionForm" onsubmit="return confirm('Apakah Anda yakin ingin melakukan aksi ini pada item terpilih?');">
+    <form action="{{ route('admin.users.bulk_action') }}" method="POST" id="bulkActionForm" onsubmit="return confirm('Apakah Anda yakin ingin melakukan aksi ini pada item terpilih?');">
         @csrf
         <div class="card shadow-sm">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -89,7 +90,8 @@
                                 <tr>
                                     <td><input type="checkbox" name="user_ids[]" value="{{ $user->id }}" class="user-checkbox"></td>
                                     <td>{{ $loop->iteration + $users->firstItem() - 1 }}</td>
-                                    <td><a href="{{ route('users.show', $user->id) }}">{{ $user->name }}</a></td>
+                                    {{-- --- DAN PERBAIKAN DI SINI --- --}}
+                                    <td><a href="{{ route('admin.users.show', $user->id) }}">{{ $user->name }}</a></td>
                                     <td>{{ $user->email }}</td>
                                     <td>
                                         <span class="badge bg-info text-dark">{{ $user->getRoleNames()->first() ?? 'No Role' }}</span>
@@ -100,13 +102,13 @@
                                                 data-bs-toggle="modal" 
                                                 data-bs-target="#qrCodeModal"
                                                 data-user-name="{{ $user->name }}"
-                                                data-qr-code-url="{{ route('users.qrcode', $user->id) }}">
+                                                data-qr-code-url="{{ route('admin.users.qrcode', $user->id) }}">
                                             <i class="bi bi-qr-code"></i>
                                         </button>
                                         <button type="button" class="btn btn-sm btn-secondary me-1" data-bs-toggle="modal" data-bs-target="#editUserModal{{ $user->id }}">
                                             <i class="bi bi-pencil-fill"></i>
                                         </button>
-                                        <form action="{{ route('users.destroy', $user->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus user ini?')">
+                                        <form action="{{ route('admin.users.destroy', $user->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus user ini?')">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-danger">

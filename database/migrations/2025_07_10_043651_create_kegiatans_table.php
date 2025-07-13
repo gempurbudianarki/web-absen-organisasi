@@ -19,7 +19,11 @@ return new class extends Migration
             $table->timestamp('waktu_selesai')->nullable();
             $table->string('tempat');
             $table->string('poster')->nullable(); // Path ke file poster
-            $table->foreignId('devisi_id')->constrained('devisis')->onDelete('cascade');
+
+            // --- PERBAIKAN UTAMA DI SINI ---
+            // Kolom devisi_id sekarang nullable sejak awal dibuat.
+            $table->foreignId('devisi_id')->nullable()->constrained('devisis')->onDelete('cascade');
+            
             $table->timestamps();
         });
     }

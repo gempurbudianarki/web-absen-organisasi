@@ -9,24 +9,24 @@ class Pengumuman extends Model
 {
     use HasFactory;
 
-    /**
-     * Nama tabel yang terhubung dengan model ini.
-     *
-     * @var string
-     */
-    protected $table = 'pengumumans'; // <-- BARIS PERBAIKAN DI SINI
+    protected $table = 'pengumumans';
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'judul',
         'isi',
         'user_id',
         'devisi_id',
         'waktu_publish',
+    ];
+
+    /**
+     * --- PERBAIKAN DI SINI ---
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'waktu_publish' => 'datetime',
     ];
 
     /**
