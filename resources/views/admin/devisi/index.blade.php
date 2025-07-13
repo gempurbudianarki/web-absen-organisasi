@@ -2,17 +2,48 @@
 
 @section('title', 'Manajemen Devisi')
 
+@push('styles')
+<style>
+    .devisi-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .devisi-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+    }
+    .devisi-card-header {
+        background: linear-gradient(135deg, #0C342C 0%, #1a4f43 100%);
+        color: white;
+    }
+    .btn-edit-devisi {
+        background-color: #ffc107;
+        border-color: #ffc107;
+        color: #000;
+    }
+    .btn-delete-devisi {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="container-fluid">
-    {{-- Notifikasi Sukses --}}
+    {{-- Notifikasi --}}
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             {{ session('success') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
+     @if (session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
 
-    {{-- Page Header --}}
+    {{-- Header Halaman --}}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="mb-0">
             <i class="bi bi-diagram-3-fill me-2"></i>
@@ -20,64 +51,78 @@
         </h4>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#tambahDevisiModal">
             <i class="bi bi-plus-circle-fill me-1"></i>
-            Tambah Devisi
+            Tambah Devisi Baru
         </button>
     </div>
 
-    {{-- Devisi Table Card --}}
-    <div class="card border-0 shadow-sm">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th scope="col" style="width: 5%;">#</th>
-                            <th scope="col">Nama Devisi</th>
-                            <th scope="col">Penanggung Jawab (PJ)</th>
-                            <th scope="col" class="text-center">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($devisis as $index => $devisi)
-                            <tr>
-                                <td>{{ $index + 1 }}</td>
-                                <td>
-                                    <a href="{{ route('admin.devisi.show', $devisi->id) }}">{{ $devisi->nama_devisi }}</a>
-                                </td>
-                                <td>{{ $devisi->pj->name ?? 'Belum ada PJ' }}</td>
-                                <td class="text-center">
-                                    <button class="btn btn-sm btn-warning btn-edit"
-                                            data-id="{{ $devisi->id }}"
-                                            data-nama="{{ $devisi->nama_devisi }}"
-                                            data-deskripsi="{{ $devisi->deskripsi }}"
-                                            data-pj_id="{{ $devisi->pj_id }}"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#editDevisiModal">
-                                        <i class="bi bi-pencil-fill"></i>
-                                    </button>
-                                    <form action="{{ route('admin.devisi.destroy', $devisi->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus devisi ini?');">
+    {{-- Daftar Devisi dalam bentuk Kartu --}}
+    <div class="row g-4">
+        @forelse ($devisis as $devisi)
+            <div class="col-md-6 col-lg-4">
+                <div class="card devisi-card shadow-sm border-0 h-100">
+                    <div class="card-header devisi-card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 text-white">{{ $devisi->nama_devisi }}</h5>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item btn-edit" href="#"
+                                       data-id="{{ $devisi->id }}"
+                                       data-nama="{{ $devisi->nama_devisi }}"
+                                       data-deskripsi="{{ $devisi->deskripsi }}"
+                                       data-pj_id="{{ $devisi->pj_id }}"
+                                       data-bs-toggle="modal"
+                                       data-bs-target="#editDevisiModal">
+                                       <i class="bi bi-pencil-fill me-2"></i>Edit
+                                    </a>
+                                </li>
+                                <li>
+                                    <form action="{{ route('admin.devisi.destroy', $devisi->id) }}" method="POST" onsubmit="return confirm('Peringatan: Menghapus devisi ini akan melepaskan semua anggotanya. Lanjutkan?');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-danger">
-                                            <i class="bi bi-trash-fill"></i>
+                                        <button type="submit" class="dropdown-item text-danger">
+                                            <i class="bi bi-trash-fill me-2"></i>Hapus
                                         </button>
                                     </form>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="text-center text-muted py-4">
-                                    Belum ada data devisi. Silakan tambahkan devisi baru.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <p class="text-muted flex-grow-1">{{ Str::limit($devisi->deskripsi, 100) ?: 'Tidak ada deskripsi.' }}</p>
+                        <div class="mt-3">
+                            <p class="mb-1">
+                                <i class="bi bi-person-workspace me-2 text-primary"></i>
+                                <strong>PJ:</strong> {{ $devisi->pj->name ?? 'Belum Ditentukan' }}
+                            </p>
+                            <p class="mb-0">
+                                <i class="bi bi-people-fill me-2 text-success"></i>
+                                <strong>Anggota:</strong> {{ $devisi->anggota_count }} Orang
+                            </p>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light border-0">
+                        <a href="{{ route('admin.devisi.show', $devisi->id) }}" class="btn btn-sm btn-outline-dark w-100">
+                            Lihat Detail
+                        </a>
+                    </div>
+                </div>
             </div>
-        </div>
+        @empty
+            <div class="col-12">
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-box2-heart fs-1"></i>
+                    <h5 class="mt-3">Belum ada devisi yang dibuat.</h5>
+                    <p>Silakan tambahkan devisi baru untuk memulai.</p>
+                </div>
+            </div>
+        @endforelse
     </div>
 </div>
 
+{{-- Modal Tambah Devisi --}}
 <div class="modal fade" id="tambahDevisiModal" tabindex="-1" aria-labelledby="tambahDevisiModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -85,8 +130,8 @@
                 @csrf
                 <div class="modal-header"><h5 class="modal-title" id="tambahDevisiModalLabel"><i class="bi bi-plus-circle-fill me-2"></i>Tambah Devisi Baru</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
                 <div class="modal-body">
-                    <div class="mb-3"><label for="nama_devisi" class="form-label">Nama Devisi</label><input type="text" class="form-control" id="nama_devisi" name="nama_devisi" placeholder="Contoh: Syiar" required></div>
-                    <div class="mb-3"><label for="deskripsi" class="form-label">Deskripsi</label><textarea class="form-control" id="deskripsi" name="deskripsi" rows="3" placeholder="Jelaskan tugas dari devisi ini"></textarea></div>
+                    <div class="mb-3"><label for="nama_devisi" class="form-label">Nama Devisi</label><input type="text" class="form-control" name="nama_devisi" placeholder="Contoh: Syiar dan Pelayanan Kampus" required></div>
+                    <div class="mb-3"><label for="deskripsi" class="form-label">Deskripsi Singkat</label><textarea class="form-control" name="deskripsi" rows="3" placeholder="Jelaskan fokus dan tugas utama dari devisi ini"></textarea></div>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary">Simpan</button></div>
             </form>
@@ -94,6 +139,7 @@
     </div>
 </div>
 
+{{-- Modal Edit Devisi --}}
 <div class="modal fade" id="editDevisiModal" tabindex="-1" aria-labelledby="editDevisiModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -104,20 +150,18 @@
                 <div class="modal-body">
                     <div class="mb-3"><label for="edit_nama_devisi" class="form-label">Nama Devisi</label><input type="text" class="form-control" id="edit_nama_devisi" name="nama_devisi" required></div>
                     <div class="mb-3"><label for="edit_deskripsi" class="form-label">Deskripsi</label><textarea class="form-control" id="edit_deskripsi" name="deskripsi" rows="3"></textarea></div>
-                    
-                    {{-- DROPDOWN UNTUK PJ --}}
                     <div class="mb-3">
                         <label for="edit_pj_id" class="form-label">Penanggung Jawab (PJ)</label>
                         <select class="form-select" id="edit_pj_id" name="pj_id">
-                            <option value="">-- Tidak ada PJ --</option>
+                            <option value="">-- Tidak Ada PJ --</option>
                             @foreach ($calon_pj as $pj)
                                 <option value="{{ $pj->id }}">{{ $pj->name }}</option>
                             @endforeach
                         </select>
+                         <div class="form-text">Hanya user yang belum menjadi PJ di devisi lain yang muncul di sini.</div>
                     </div>
-
                 </div>
-                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary">Update</button></div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary">Simpan Perubahan</button></div>
             </form>
         </div>
     </div>
@@ -127,24 +171,32 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const editButtons = document.querySelectorAll('.btn-edit');
-    const editForm = document.getElementById('editDevisiForm');
-    const editNamaInput = document.getElementById('edit_nama_devisi');
-    const editDeskripsiInput = document.getElementById('edit_deskripsi');
-    const editPjSelect = document.getElementById('edit_pj_id');
+    const editModal = document.getElementById('editDevisiModal');
+    editModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const id = button.getAttribute('data-id');
+        const nama = button.getAttribute('data-nama');
+        const deskripsi = button.getAttribute('data-deskripsi');
+        const pj_id = button.getAttribute('data-pj_id');
 
-    editButtons.forEach(button => {
-        button.addEventListener('click', function () {
-            const id = this.getAttribute('data-id');
-            const nama = this.getAttribute('data-nama');
-            const deskripsi = this.getAttribute('data-deskripsi');
-            const pj_id = this.getAttribute('data-pj_id');
+        const form = editModal.querySelector('#editDevisiForm');
+        const namaInput = editModal.querySelector('#edit_nama_devisi');
+        const deskripsiInput = editModal.querySelector('#edit_deskripsi');
+        const pjSelect = editModal.querySelector('#edit_pj_id');
 
-            editForm.action = `/admin/devisi/${id}`;
-            editNamaInput.value = nama;
-            editDeskripsiInput.value = deskripsi;
-            editPjSelect.value = pj_id;
-        });
+        // Dinamis mengatur action form
+        form.action = `/admin/devisi/${id}`;
+
+        // Mengisi nilai ke dalam form
+        namaInput.value = nama;
+        deskripsiInput.value = deskripsi;
+
+        // Mengatur PJ yang sedang terpilih di dropdown
+        if (pj_id) {
+            pjSelect.value = pj_id;
+        } else {
+            pjSelect.value = "";
+        }
     });
 });
 </script>

@@ -4,9 +4,10 @@
 
 @section('content')
 <div class="container-fluid">
-    {{-- Notifikasi Sukses --}}
+    {{-- Notifikasi --}}
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>
             {{ session('success') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
@@ -24,73 +25,60 @@
         </a>
     </div>
 
-    {{-- Tabel Kegiatan --}}
-    <div class="card border-0 shadow-sm">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th scope="col" style="width: 5%;">#</th>
-                            <th scope="col" style="width: 10%;">Poster</th>
-                            <th scope="col">Judul & Tempat Kegiatan</th>
-                            <th scope="col">Devisi Penyelenggara</th>
-                            <th scope="col">Jadwal Mulai</th>
-                            <th scope="col" class="text-center">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($kegiatans as $index => $kegiatan)
-                            <tr>
-                                <td>{{ $kegiatans->firstItem() + $index }}</td>
-                                <td>
-                                    <img src="{{ $kegiatan->poster_url }}" alt="Poster" class="img-fluid rounded" style="width: 80px; height: 80px; object-fit: cover;">
-                                </td>
-                                <td>
-                                    <a href="{{ route('admin.kegiatan.edit', $kegiatan->id) }}" class="fw-bold text-decoration-none">{{ $kegiatan->judul }}</a>
-                                    <p class="text-muted small mb-0"><i class="bi bi-geo-alt-fill me-1"></i>{{ $kegiatan->tempat }}</p>
-                                </td>
-                                <td>
-                                    {{-- --- PERUBAHAN DI SINI --- --}}
-                                    @if ($kegiatan->devisi)
-                                        <a href="{{ route('admin.devisi.show', $kegiatan->devisi->id) }}" class="text-decoration-none">{{ $kegiatan->devisi->nama_devisi }}</a>
-                                    @else
-                                        <span class="badge bg-success">Semua Devisi</span>
-                                    @endif
-                                </td>
-                                <td>{{ $kegiatan->waktu_mulai->isoFormat('dddd, D MMM YYYY, H:mm') }}</td>
-                                <td class="text-center">
-                                    <div class="btn-group" role="group">
-                                        <a href="{{ route('admin.kegiatan.edit', $kegiatan->id) }}" class="btn btn-sm btn-outline-warning" title="Edit">
-                                            <i class="bi bi-pencil-fill"></i>
-                                        </a>
-                                        <form action="{{ route('admin.kegiatan.destroy', $kegiatan->id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus kegiatan ini?');" class="d-inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus">
-                                                <i class="bi bi-trash-fill"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-4">
-                                    <i class="bi bi-calendar-x fs-3 d-block mb-2"></i>
-                                    Belum ada kegiatan yang dibuat.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            @if ($kegiatans->hasPages())
-                <div class="d-flex justify-content-end mt-3">
-                    {{ $kegiatans->links() }}
+    {{-- Daftar Kegiatan dalam bentuk Grid Kartu --}}
+    <div class="row g-4">
+        @forelse ($kegiatans as $kegiatan)
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm border-0" style="transition: all 0.2s ease-in-out;">
+                    <a href="{{ route('admin.kegiatan.edit', $kegiatan->id) }}">
+                        <img src="{{ $kegiatan->poster_url }}" class="card-img-top" alt="Poster {{ $kegiatan->judul }}" style="height: 200px; object-fit: cover;">
+                    </a>
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">{{ $kegiatan->judul }}</h5>
+                        <div class="card-subtitle mb-2">
+                            @if ($kegiatan->devisi)
+                                <span class="badge bg-primary">{{ $kegiatan->devisi->nama_devisi }}</span>
+                            @else
+                                <span class="badge bg-success">Umum (Semua Devisi)</span>
+                            @endif
+                        </div>
+                        <p class="card-text text-muted small flex-grow-1">{{ Str::limit($kegiatan->deskripsi, 100) }}</p>
+                        <div class="mt-3">
+                            <p class="mb-1 small"><i class="bi bi-calendar-week-fill me-2 text-primary"></i>{{ $kegiatan->waktu_mulai->isoFormat('dddd, D MMMM YYYY') }}</p>
+                            <p class="mb-0 small"><i class="bi bi-clock-fill me-2 text-success"></i>Pukul {{ $kegiatan->waktu_mulai->isoFormat('HH:mm') }} WIB</p>
+                            <p class="mb-0 small"><i class="bi bi-geo-alt-fill me-2 text-danger"></i>{{ $kegiatan->tempat }}</p>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light d-flex justify-content-end gap-2">
+                        <a href="{{ route('admin.kegiatan.edit', $kegiatan->id) }}" class="btn btn-sm btn-outline-warning" title="Edit">
+                            <i class="bi bi-pencil-fill"></i> Edit
+                        </a>
+                        <form action="{{ route('admin.kegiatan.destroy', $kegiatan->id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus kegiatan ini?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus">
+                                <i class="bi bi-trash-fill"></i> Hapus
+                            </button>
+                        </form>
+                    </div>
                 </div>
-            @endif
-        </div>
+            </div>
+        @empty
+            <div class="col-12">
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-calendar-x fs-1"></i>
+                    <h5 class="mt-3">Belum ada kegiatan yang dibuat.</h5>
+                    <p>Klik tombol "Tambah Kegiatan" untuk memulai.</p>
+                </div>
+            </div>
+        @endforelse
     </div>
+
+    {{-- Paginasi --}}
+    @if ($kegiatans->hasPages())
+        <div class="d-flex justify-content-center mt-4">
+            {{ $kegiatans->links() }}
+        </div>
+    @endif
 </div>
 @endsection

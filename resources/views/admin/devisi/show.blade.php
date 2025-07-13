@@ -157,7 +157,7 @@
                                 @forelse($devisi->anggota as $anggota)
                                 <tr data-name="{{ strtolower($anggota->name) }}">
                                     <td>{{ $loop->iteration }}</td>
-                                    <td><a href="{{ route('users.show', $anggota->id) }}">{{ $anggota->name }}</a></td>
+                                    <td><a href="{{ route('admin.users.show', $anggota->id) }}">{{ $anggota->name }}</a></td>
                                     <td>{{ $anggota->email }}</td>
                                     <td class="text-center">
                                         <form action="{{ route('admin.devisi.removeMember', ['devisi' => $devisi->id, 'user' => $anggota->id]) }}" method="POST" onsubmit="return confirm('Keluarkan {{ $anggota->name }} dari devisi ini?')">
@@ -259,6 +259,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Fungsi pencarian untuk tabel
     function setupSearch(inputId, tableBodyId) {
         const searchInput = document.getElementById(inputId);
+        if (!searchInput) return; // Guard clause
+        
         const tableBody = document.getElementById(tableBodyId);
         const tableRows = tableBody.querySelectorAll('tr');
 
@@ -266,10 +268,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const searchTerm = e.target.value.toLowerCase();
 
             tableRows.forEach(row => {
-                const name = row.dataset.name.toLowerCase();
-                if (name.includes(searchTerm)) {
+                const name = row.dataset.name;
+                if (name && name.toLowerCase().includes(searchTerm)) {
                     row.style.display = '';
-                } else {
+                } else if(name) {
                     row.style.display = 'none';
                 }
             });

@@ -16,7 +16,7 @@ class Kegiatan extends Model
         'waktu_mulai',
         'waktu_selesai',
         'tempat',
-        'poster',
+        'poster', // Ini adalah path relatif ke file, contoh: 'kegiatan-posters/abc.jpg'
         'devisi_id',
     ];
 
@@ -37,17 +37,21 @@ class Kegiatan extends Model
     }
 
     /**
-     * Accessor untuk mendapatkan URL penuh dari poster.
-     * Jika tidak ada poster, kembalikan URL placeholder.
+     * PERBAIKAN UTAMA: Accessor untuk mendapatkan URL penuh dari poster.
+     * Ini adalah cara standar industri untuk menangani URL file.
+     *
+     * @return string
      */
-    public function getPosterUrlAttribute()
+    public function getPosterUrlAttribute(): string
     {
-        if ($this->poster) {
-            // Mengembalikan URL publik dari storage
-            return Storage::url($this->poster);
+        // Jika ada path poster yang tersimpan di database
+        if ($this->poster && Storage::disk('public')->exists($this->poster)) {
+            // Kembalikan URL publik yang valid dari storage.
+            return Storage::disk('public')->url($this->poster);
         }
 
-        // URL placeholder jika tidak ada gambar
-        return 'https://ui-avatars.com/api/?name=' . urlencode($this->judul) . '&background=random&size=128';
+        // Jika tidak ada poster, kembalikan URL placeholder yang dinamis.
+        // Ini memastikan tampilan tidak rusak meskipun kegiatan tidak memiliki poster.
+        return 'https://ui-avatars.com/api/?name=' . urlencode($this->judul) . '&background=0D6EFD&color=fff&size=128';
     }
 }

@@ -12,28 +12,31 @@ use Illuminate\Validation\Rule;
 class DevisiController extends Controller
 {
     /**
-     * Menampilkan daftar semua devisi beserta data untuk form.
+     * Menampilkan halaman utama manajemen devisi.
+     *
+     * @return \Illuminate\View\View
      */
     public function index()
     {
         $devisis = Devisi::withCount('anggota')->with('pj')->latest()->get();
 
-        // Mengambil user yang bisa menjadi PJ:
-        // - Memiliki role 'anggota' ATAU
-        // - Memiliki role 'pj' tapi belum ditugaskan ke devisi manapun (tidak punya devisiYangDipimpin)
-        $calon_pj = User::where(function ($query) {
-            $query->whereHas('roles', fn ($q) => $q->where('name', 'anggota'))
-                  ->orWhere(function ($subQuery) {
-                      $subQuery->whereHas('roles', fn ($q) => $q->where('name', 'pj'))
-                               ->doesntHave('devisiYangDipimpin');
-                  });
-        })->orderBy('name')->get();
+        // Query yang lebih efisien untuk calon PJ:
+        // User yang BUKAN admin dan BELUM menjadi PJ di devisi manapun.
+        $calon_pj = User::whereHas('roles', function ($query) {
+            $query->where('name', '!=', 'admin');
+        })
+        ->whereDoesntHave('devisiYangDipimpin')
+        ->orderBy('name')
+        ->get();
 
         return view('admin.devisi.index', compact('devisis', 'calon_pj'));
     }
 
     /**
      * Menyimpan devisi baru ke dalam database.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
     {
@@ -49,19 +52,27 @@ class DevisiController extends Controller
 
     /**
      * Menampilkan halaman detail untuk sebuah devisi.
+     *
+     * @param  \App\Models\Devisi  $devisi
+     * @return \Illuminate\View\View
      */
     public function show(Devisi $devisi)
     {
+        // Eager load relasi untuk performa lebih baik
         $devisi->load('pj', 'anggota', 'kegiatan');
         
-        // Mengambil calon anggota: user dengan role 'anggota' yang belum punya devisi.
+        // Calon anggota: user dengan role 'anggota' yang belum punya devisi.
         $calon_anggota = User::role('anggota')->whereNull('devisi_id')->orderBy('name')->get();
 
         return view('admin.devisi.show', compact('devisi', 'calon_anggota'));
     }
 
     /**
-     * Mengupdate data devisi, termasuk menunjuk PJ baru secara atomik.
+     * Mengupdate data devisi dan menunjuk PJ baru secara atomik.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\Devisi  $devisi
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function update(Request $request, Devisi $devisi)
     {
@@ -78,79 +89,87 @@ class DevisiController extends Controller
             // Update informasi dasar devisi
             $devisi->update($request->only('nama_devisi', 'deskripsi', 'pj_id'));
 
-            // Jika ada perubahan PJ
+            // Jika ada perubahan PJ, lakukan sinkronisasi role
             if ($oldPjId !== $newPjId) {
-                // 1. Copot role PJ lama (jika ada)
+                // 1. Kembalikan role PJ lama menjadi 'anggota' jika ada
                 if ($oldPjId && $oldPj = User::find($oldPjId)) {
-                    $oldPj->removeRole('pj');
-                    $oldPj->assignRole('anggota');
+                    $oldPj->syncRoles('anggota');
                 }
-                // 2. Berikan role PJ ke user baru (jika ada)
+                // 2. Tetapkan user baru sebagai 'pj'
                 if ($newPjId && $newPj = User::find($newPjId)) {
-                    $newPj->removeRole('anggota');
-                    $newPj->assignRole('pj');
+                    $newPj->syncRoles('pj');
                 }
             }
         });
 
-        return redirect()->route('admin.devisi.index')->with('success', 'Data devisi berhasil diperbarui!');
+        return redirect()->route('admin.devisi.index')->with('success', "Data devisi '{$devisi->nama_devisi}' berhasil diperbarui!");
     }
 
     /**
-     * Menghapus devisi beserta relasinya secara aman.
+     * Menghapus devisi dan menangani relasi secara aman.
+     *
+     * @param  \App\Models\Devisi  $devisi
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(Devisi $devisi)
     {
+        $namaDevisi = $devisi->nama_devisi;
         DB::transaction(function () use ($devisi) {
-            // 1. Lepaskan semua anggota dari devisi ini
+            // 1. Lepaskan semua anggota dari devisi ini (set devisi_id menjadi null)
             User::where('devisi_id', $devisi->id)->update(['devisi_id' => null]);
 
-            // 2. Jika ada PJ, copot rolenya
+            // 2. Jika ada PJ, kembalikan rolenya menjadi 'anggota'
             if ($devisi->pj) {
                 $pj = $devisi->pj;
-                $pj->removeRole('pj');
-                $pj->assignRole('anggota');
+                $pj->syncRoles('anggota');
             }
             
             // 3. Hapus devisi
             $devisi->delete();
         });
 
-        return redirect()->route('admin.devisi.index')->with('success', 'Devisi berhasil dihapus!');
+        return redirect()->route('admin.devisi.index')->with('success', "Devisi '{$namaDevisi}' beserta relasinya berhasil dihapus!");
     }
 
     /**
      * Menambahkan anggota ke dalam devisi.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\Devisi  $devisi
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function addMember(Request $request, Devisi $devisi)
     {
-        $request->validate([
-            'user_id' => 'required|exists:users,id',
-        ]);
+        $request->validate(['user_id' => 'required|exists:users,id']);
 
         $user = User::find($request->user_id);
 
         if ($user->devisi_id) {
-             return back()->with('error', $user->name . ' sudah terdaftar di devisi lain.');
+             return back()->with('error', "Gagal: Pengguna '{$user->name}' sudah terdaftar di devisi lain.");
         }
 
         $user->devisi_id = $devisi->id;
         $user->save();
 
-        return back()->with('success', $user->name . ' berhasil ditambahkan ke devisi ' . $devisi->nama_devisi);
+        return back()->with('success', "'{$user->name}' berhasil ditambahkan ke devisi '{$devisi->nama_devisi}'.");
     }
 
     /**
      * Mengeluarkan anggota dari devisi.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\Devisi  $devisi
+     * @param  \App\Models\User  $user
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function removeMember(Request $request, Devisi $devisi, User $user)
     {
-        if ($user->devisi_id == $devisi->id) {
-            $user->devisi_id = null;
-            $user->save();
-            return back()->with('success', $user->name . ' berhasil dikeluarkan dari devisi.');
+        if ($user->devisi_id !== $devisi->id) {
+            return back()->with('error', 'Aksi gagal: Pengguna bukan anggota devisi ini.');
         }
 
-        return back()->with('error', 'Aksi gagal: User bukan anggota devisi ini.');
+        $user->devisi_id = null;
+        $user->save();
+        return back()->with('success', "'{$user->name}' berhasil dikeluarkan dari devisi.");
     }
 }

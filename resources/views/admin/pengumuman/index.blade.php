@@ -10,17 +10,34 @@
     <style>
         /* Sembunyikan tombol upload file di Trix Editor */
         .trix-button-group--file-tools { display: none; }
-        /* Style untuk konten dari Trix agar rapi */
+        
+        /* Style untuk konten dari Trix agar rapi saat ditampilkan */
         .trix-content {
             line-height: 1.6;
+            color: #495057;
         }
         .trix-content h1 {
-            font-size: 1.5rem;
+            font-size: 1.75rem;
             margin-bottom: 1rem;
             margin-top: 1.5rem;
+            font-weight: 600;
         }
         .trix-content ul, .trix-content ol {
             padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .trix-content blockquote {
+            border-left: 5px solid #0D6EFD;
+            padding-left: 1rem;
+            margin-left: 0;
+            font-style: italic;
+            color: #6c757d;
+        }
+        .trix-content pre {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: .5rem;
+            white-space: pre-wrap;
         }
     </style>
 @endpush
@@ -30,7 +47,7 @@
     {{-- Notifikasi --}}
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {{ session('success') }}
+            <i class="bi bi-check-circle-fill me-2"></i>{{ session('success') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
@@ -43,20 +60,20 @@
         </button>
     </div>
 
-    {{-- Daftar Pengumuman (Desain Kartu) --}}
+    {{-- Daftar Pengumuman (Desain Kartu Baru) --}}
     @forelse($pengumumans as $pengumuman)
         <div class="card shadow-sm mb-4">
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h4 class="card-title">{{ $pengumuman->judul }}</h4>
-                        <div class="card-subtitle mb-2 text-muted small">
-                            <span class="me-3"><i class="bi bi-person-fill"></i> {{ $pengumuman->user->name }}</span>
-                            <span class="me-3"><i class="bi bi-clock-fill"></i> {{ $pengumuman->waktu_publish->isoFormat('dddd, D MMMM YYYY, H:mm') }}</span>
+                        <h4 class="card-title mb-1">{{ $pengumuman->judul }}</h4>
+                        <div class="card-subtitle mb-3 text-muted small d-flex align-items-center flex-wrap gap-3">
+                            <span><i class="bi bi-person-fill me-1"></i>Oleh: {{ $pengumuman->user->name }}</span>
+                            <span><i class="bi bi-clock-fill me-1"></i>{{ $pengumuman->waktu_publish->isoFormat('dddd, D MMMM YYYY, H:mm') }} WIB</span>
                             <span>
-                                <i class="bi bi-bullseye"></i> Untuk: 
+                                <i class="bi bi-bullseye me-1"></i>Untuk: 
                                 @if($pengumuman->devisi)
-                                    <span class="badge bg-info">{{ $pengumuman->devisi->nama_devisi }}</span>
+                                    <span class="badge bg-primary">{{ $pengumuman->devisi->nama_devisi }}</span>
                                 @else
                                     <span class="badge bg-success">Semua Devisi</span>
                                 @endif
@@ -77,7 +94,7 @@
             </div>
         </div>
     @empty
-        <div class="text-center text-muted py-5">
+        <div class="text-center text-muted py-5 bg-light rounded">
             <i class="bi bi-bell-slash-fill fs-1"></i>
             <h5 class="mt-3">Belum ada pengumuman yang dibuat.</h5>
             <p>Klik tombol "Buat Pengumuman Baru" untuk memulai.</p>
@@ -85,9 +102,11 @@
     @endforelse
 
     {{-- Paginasi --}}
-    <div class="d-flex justify-content-center mt-4">
-        {{ $pengumumans->links() }}
-    </div>
+    @if ($pengumumans->hasPages())
+        <div class="d-flex justify-content-center mt-4">
+            {{ $pengumumans->links() }}
+        </div>
+    @endif
 </div>
 
 {{-- Modal Tambah Pengumuman --}}
@@ -102,11 +121,11 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="judul" class="form-label">Judul Pengumuman</label>
-                        <input type="text" class="form-control" name="judul" required>
+                        <label for="judul" class="form-label fw-bold">Judul Pengumuman</label>
+                        <input type="text" class="form-control" name="judul" placeholder="Tulis judul yang jelas dan ringkas" required>
                     </div>
                     <div class="mb-3">
-                        <label for="devisi_id" class="form-label">Target Devisi</label>
+                        <label for="devisi_id" class="form-label fw-bold">Target Devisi</label>
                         <select name="devisi_id" class="form-select">
                             <option value="">-- Untuk Semua Devisi (Umum) --</option>
                             @foreach($devisis as $devisi)
@@ -115,16 +134,16 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="isi_pengumuman" class="form-label">Isi Pengumuman</label>
-                        {{-- Hidden input yang akan diisi oleh Trix Editor --}}
+                        <label for="isi_pengumuman" class="form-label fw-bold">Isi Pengumuman</label>
+                        {{-- Input tersembunyi ini akan diisi oleh Trix Editor --}}
                         <input id="isi_pengumuman" type="hidden" name="isi">
                         {{-- Trix Editor --}}
-                        <trix-editor input="isi_pengumuman" class="form-control" style="min-height: 200px;"></trix-editor>
+                        <trix-editor input="isi_pengumuman" class="form-control" style="min-height: 250px;"></trix-editor>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary">Publikasikan</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-send-fill me-1"></i> Publikasikan</button>
                 </div>
             </form>
         </div>

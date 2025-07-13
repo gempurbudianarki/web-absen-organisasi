@@ -19,15 +19,12 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var array<int, string>
      */
     protected $fillable = [
-        'name',
+        'name', // <-- Hanya 'name' yang dipertahankan untuk nama lengkap.
         'email',
         'password',
         'devisi_id',
         
-        // --- KOLOM BARU HASIL KONSOLIDASI ---
-        'fname',
-        'mname',
-        'lname',
+        // --- Kolom yang sudah tidak relevan dihapus dari sini ---
         'grade_level',
         'section',
         'qr_code',

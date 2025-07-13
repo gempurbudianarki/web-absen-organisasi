@@ -4,11 +4,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\EmployeeController;
-use App\Http\Controllers\LearnerController;
+// Hapus 'use App\Http\Controllers\LearnerController;' karena akan kita hilangkan
 use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\EmailLogController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\Admin\LearnerAttendanceController;
 use App\Http\Controllers\Admin\DevisiController;
 use App\Http\Controllers\Admin\KegiatanController as AdminKegiatanController;
 use App\Http\Controllers\Admin\AbsensiController as AdminAbsensiController;
@@ -16,8 +15,9 @@ use App\Http\Controllers\Admin\PengumumanController as AdminPengumumanController
 use App\Http\Controllers\PJ\KegiatanController as PJKegiatanController;
 use App\Http\Controllers\PJ\AbsensiController as PJAbsensiController;
 use App\Http\Controllers\PJ\PengumumanController as PJPengumumanController;
-use App\Http\Controllers\Anggota\DashboardController;
+use App\Http\Controllers\Anggota\DashboardController as AnggotaDashboardController;
 use App\Http\Controllers\Anggota\AbsensiController as AnggotaAbsensiController;
+use App\Http\Controllers\QrScanController; // <-- Menambahkan QrScanController
 
 /*
 |--------------------------------------------------------------------------
@@ -53,14 +53,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
 
-        // Manajemen User
-        Route::get('/users', [UserController::class, 'index'])->name('users.index');
-        Route::get('/users/{id}', [UserController::class, 'show'])->name('users.show');
-        Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
-        Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+        // --- PERBAIKAN: Menggunakan Route::resource untuk standarisasi ---
+        Route::resource('users', UserController::class)->except(['create', 'store']); // Create/Store ditangani RegisterController
         Route::get('/users/{id}/qrcode', [UserController::class, 'generateQrCode'])->name('users.qrcode');
-        Route::post('/users/{id}/reset-password', [UserController::class, 'reset_password'])->name('users.reset_password');
-        Route::post('/users/bulk-action', [UserController::class, 'bulk_action'])->name('users.bulk_action');
+        Route::post('/users/{id}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset_password'); // Mengganti nama reset_password
+        Route::post('/users/bulk-action', [UserController::class, 'bulkAction'])->name('users.bulk_action');
 
         // Manajemen Devisi
         Route::post('devisi/{devisi}/add-member', [DevisiController::class, 'addMember'])->name('devisi.addMember');
@@ -101,7 +98,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // RUTE-RUTE KHUSUS PJ
     Route::prefix('pj')->name('pj.')->middleware('role:pj')->group(function () {
-        Route::get('/dashboard', [PJKegiatanController::class, 'dashboard'])->name('dashboard');
+        // --- PERBAIKAN: Menambahkan dashboard untuk PJ ---
+        Route::get('/dashboard', [\App\Http\Controllers\PJ\DashboardController::class, 'index'])->name('dashboard');
         Route::resource('kegiatan', PJKegiatanController::class);
         Route::get('absensi/{kegiatan_id}', [PJAbsensiController::class, 'show'])->name('absensi.show');
         Route::post('absensi', [PJAbsensiController::class, 'store'])->name('absensi.store');
@@ -114,9 +112,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // RUTE-RUTE KHUSUS ANGGOTA
     Route::prefix('anggota')->name('anggota.')->middleware('role:anggota')->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-        Route::get('/absensi/masuk', [AnggotaAbsensiController::class, 'showCodeForm'])->name('absensi.form');
-        Route::post('/absensi/masuk', [AnggotaAbsensiController::class, 'processCode'])->name('absensi.process');
+        Route::get('/dashboard', [AnggotaDashboardController::class, 'index'])->name('dashboard');
+        // --- PERBAIKAN: Memisahkan logika QR dan Kode Absensi ---
+        Route::get('/absensi/scan', [QrScanController::class, 'scan'])->name('absensi.scan');
+        Route::post('/absensi/scan/process', [QrScanController::class, 'process'])->name('absensi.process');
+        Route::get('/absensi/kode', [QrScanController::class, 'showCodeForm'])->name('absensi.kode.form');
+        Route::post('/absensi/kode/process', [QrScanController::class, 'processCode'])->name('absensi.kode.process');
     });
 
     // Rute untuk role lain jika ada

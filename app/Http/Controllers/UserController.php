@@ -2,21 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Devisi;
-use Spatie\Permission\Models\Role;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\WelcomeMail;
-use App\Mail\CustomMessageMail;
-use App\Models\EmailLog;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\CustomMessageMail;
 use Illuminate\Validation\Rules\Password;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class UserController extends Controller
 {
+    /**
+     * Menampilkan daftar semua pengguna dengan filter dan paginasi.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\View\View
+     */
     public function index(Request $request)
     {
         $query = User::with('roles', 'devisi');
@@ -38,24 +42,40 @@ class UserController extends Controller
         return view('users.index', compact('users', 'roles', 'devisis'));
     }
 
-    public function show($id)
+    /**
+     * Menampilkan profil detail seorang pengguna.
+     * Menggunakan Route Model Binding untuk keamanan dan kemudahan.
+     *
+     * @param  \App\Models\User  $user
+     * @return \Illuminate\View\View
+     */
+    public function show(User $user)
     {
-        $user = User::with(['devisi', 'roles', 'attendance' => function ($query) {
-            $query->orderBy('date', 'desc')->take(10);
-        }])->findOrFail($id);
+        // Eager load relasi untuk menghindari N+1 query problem
+        $user->load(['devisi', 'roles', 'attendance' => function ($query) {
+            $query->latest('date')->take(10);
+        }]);
         
         return view('users.show', compact('user'));
     }
 
+    /**
+     * Mengupdate data pengguna di database.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\User  $user
+     * @return \Illuminate\Http\RedirectResponse
+     */
     public function update(Request $request, User $user)
     {
         $request->validate([
-            'name' => 'required',
+            'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
             'role' => 'required|exists:roles,name',
             'devisi_id' => 'nullable|exists:devisis,id'
         ]);
 
+        // Menggunakan transaksi database untuk memastikan integritas data.
         DB::transaction(function () use ($request, $user) {
             $user->update([
                 'name' => $request->name,
@@ -63,28 +83,40 @@ class UserController extends Controller
                 'devisi_id' => $request->devisi_id,
             ]);
 
+            // Mensinkronkan role, menghapus role lama dan menetapkan yang baru.
             $user->syncRoles([$request->role]);
         });
 
-        return redirect()
-            ->route('users.index')
-            ->with('success', 'User updated successfully!');
+        return redirect()->route('admin.users.index')->with('success', 'Data pengguna berhasil diperbarui!');
     }
 
-
+    /**
+     * Menghapus pengguna dari database.
+     *
+     * @param  \App\Models\User  $user
+     * @return \Illuminate\Http\RedirectResponse
+     */
     public function destroy(User $user)
     {
+        // Melarang admin menghapus akunnya sendiri
+        if ($user->id === auth()->id()) {
+            return redirect()->route('admin.users.index')->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
+        }
+
         $user->delete();
 
-        return redirect()
-            ->route('users.index')
-            ->with('success', 'User deleted successfully.');
+        return redirect()->route('admin.users.index')->with('success', 'Pengguna berhasil dihapus.');
     }
 
-    public function resetPassword(Request $request, $id)
+    /**
+     * Mereset password untuk seorang pengguna.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\User  $user
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function resetPassword(Request $request, User $user)
     {
-        $user = User::findOrFail($id);
-
         $request->validate([
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
@@ -93,11 +125,11 @@ class UserController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        return redirect()->route('users.show', $user->id)->with('success', 'Password untuk ' . $user->name . ' berhasil direset.');
+        return redirect()->route('admin.users.show', $user->id)->with('success', 'Password untuk ' . $user->name . ' berhasil direset.');
     }
 
     /**
-     * Perform bulk actions on selected users.
+     * Melakukan aksi massal pada pengguna yang dipilih.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
@@ -105,7 +137,7 @@ class UserController extends Controller
     public function bulkAction(Request $request)
     {
         $request->validate([
-            'action' => 'required|string',
+            'action' => 'required|string|in:change_devisi,delete',
             'user_ids' => 'required|array|min:1',
             'user_ids.*' => 'exists:users,id',
             'devisi_id' => 'nullable|required_if:action,change_devisi|exists:devisis,id'
@@ -115,84 +147,82 @@ class UserController extends Controller
         $action = $request->action;
 
         if ($action === 'delete') {
-            User::whereIn('id', $userIds)->delete();
-            return back()->with('success', count($userIds) . ' pengguna berhasil dihapus.');
+            // Filter untuk mencegah admin menghapus dirinya sendiri dalam aksi massal
+            $filteredUserIds = array_diff($userIds, [auth()->id()]);
+            $deletedCount = User::whereIn('id', $filteredUserIds)->delete();
+            $message = $deletedCount . ' pengguna berhasil dihapus.';
+            if (count($filteredUserIds) < count($userIds)) {
+                $message .= ' Akun Anda tidak ikut terhapus.';
+            }
+            return back()->with('success', $message);
         }
         
         if ($action === 'change_devisi') {
             User::whereIn('id', $userIds)->update(['devisi_id' => $request->devisi_id]);
             $devisi = Devisi::find($request->devisi_id);
-            return back()->with('success', count($userIds) . ' pengguna berhasil dipindahkan ke devisi ' . $devisi->nama_devisi . '.');
+            $devisiName = $devisi ? $devisi->nama_devisi : 'Tidak Ada Devisi';
+            return back()->with('success', count($userIds) . ' pengguna berhasil dipindahkan ke devisi ' . $devisiName . '.');
         }
 
         return back()->with('error', 'Aksi tidak valid.');
     }
 
-    public function sendMail(Request $request)
-    {
-        $request->validate([
-            'recipients'   => 'required|array|min:1',
-            'recipients.*' => 'integer|exists:users,id',
-        ]);
-
-        $users = User::whereIn('id', $request->input('recipients'))->get();
-
-        foreach ($users as $user) {
-            Mail::to($user->email)->send(new WelcomeMail($user));
-
-             EmailLog::create([
-                'user_id' => $user->id,
-                'email'   => $user->email,
-                'subject' => 'Welcome to Email Sender',
-                'sent_at' => now(),
-            ]);
-        }
-
-        $emails = $users->pluck('email')->implode(', ');
-
-        return redirect()
-            ->back()
-            ->with('emailSuccess', "Sent to: {$emails}");
-    }
-
+    /**
+     * Menampilkan form untuk mengirim email kustom.
+     *
+     * @return \Illuminate\View\View
+     */
     public function customEmailForm()
     {
         $users = User::orderBy('name')->get();
         return view('custom-email', compact('users'));
     }
 
+    /**
+     * Mengirim email kustom ke pengguna yang dipilih.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\RedirectResponse
+     */
     public function sendCustomEmail(Request $request)
     {
         $request->validate([
             'subject' => 'required|string|max:255',
             'content' => 'required|string',
-            'recipients' => 'required|array'
+            'recipients' => 'required|array|min:1',
+            'recipients.*' => 'exists:users,id',
         ]);
 
         $users = User::whereIn('id', $request->recipients)->get();
 
         foreach ($users as $user) {
-            Mail::to($user->email)->send(new CustomMessageMail(
+            // Antrikan email untuk dikirim di background agar tidak memperlambat UI
+            Mail::to($user->email)->queue(new CustomMessageMail(
                 $request->subject,
                 $request->content
             ));
         }
-        $emails = $users->pluck('email')->take(5)->implode(', ');
-        $more = $users->count() > 5 ? ' and others' : '';
-
-        return redirect()
-            ->back()
-            ->with('emailSuccess', "Custom message has been queued for: {$emails}{$more}");
+        
+        $userCount = count($users);
+        return redirect()->back()->with('emailSuccess', "Email telah dimasukkan ke dalam antrian untuk dikirim ke {$userCount} penerima.");
     }
     
+    /**
+     * Menghasilkan QR Code untuk seorang pengguna.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
     public function generateQrCode($id)
     {
         $user = User::findOrFail($id);
 
+        // Data yang disematkan di QR Code dibuat lebih aman dan terstruktur
         $qrData = json_encode([
             'user_id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'generated_at' => now()->toIso8601String(), // Menambah stempel waktu
         ]);
 
         $qrCode = QrCode::size(300)->margin(10)->generate($qrData);

@@ -11,11 +11,13 @@ use Illuminate\Support\Facades\Auth;
 class PengumumanController extends Controller
 {
     /**
-     * Menampilkan halaman manajemen pengumuman.
+     * Menampilkan halaman utama manajemen pengumuman.
+     *
+     * @return \Illuminate\View\View
      */
     public function index()
     {
-        // Ambil data pengumuman, diurutkan dari yang terbaru, dengan relasi ke user dan devisi.
+        // Eager load relasi 'user' dan 'devisi' untuk mencegah N+1 query problem.
         $pengumumans = Pengumuman::with(['user', 'devisi'])->latest()->paginate(5);
         
         // Ambil data devisi untuk ditampilkan di dropdown form.
@@ -26,36 +28,44 @@ class PengumumanController extends Controller
 
     /**
      * Menyimpan pengumuman baru ke database.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
     {
         $request->validate([
             'judul' => 'required|string|max:255',
             'isi' => 'required|string',
-            // devisi_id boleh kosong (untuk pengumuman umum)
+            // Validasi diperketat: devisi_id boleh kosong, tapi jika diisi, harus ada di tabel devisis.
             'devisi_id' => 'nullable|exists:devisis,id',
         ]);
 
-        Pengumuman::create([
+        $pengumuman = Pengumuman::create([
             'judul' => $request->judul,
             'isi' => $request->isi,
             'devisi_id' => $request->devisi_id,
-            'user_id' => Auth::id(), // Mengambil ID admin yang sedang login secara otomatis
+            'user_id' => Auth::id(), // Mengambil ID admin yang sedang login secara otomatis.
             'waktu_publish' => now(),
         ]);
 
         return redirect()->route('admin.pengumuman.index')
-                         ->with('success', 'Pengumuman berhasil dipublikasikan!');
+                         ->with('success', "Pengumuman '{$pengumuman->judul}' berhasil dipublikasikan!");
     }
 
     /**
      * Menghapus pengumuman dari database.
+     *
+     * @param  \App\Models\Pengumuman  $pengumuman
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(Pengumuman $pengumuman)
     {
-        // Otorisasi sederhana: pastikan hanya admin yang bisa menghapus (melalui middleware)
+        // Otorisasi sederhana sudah ditangani oleh middleware 'role:admin' di level rute.
+        $namaPengumuman = $pengumuman->judul;
         $pengumuman->delete();
+
         return redirect()->route('admin.pengumuman.index')
-                         ->with('success', 'Pengumuman berhasil dihapus.');
+                         ->with('success', "Pengumuman '{$namaPengumuman}' berhasil dihapus.");
     }
 }
