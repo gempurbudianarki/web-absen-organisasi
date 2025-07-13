@@ -12,7 +12,6 @@ class KegiatanPolicy
 
     /**
      * Otorisasi super-admin untuk bisa melakukan segalanya.
-     * Jika user memiliki role 'admin', semua pengecekan lain akan di-bypass.
      */
     public function before(User $user, $ability)
     {
@@ -22,7 +21,7 @@ class KegiatanPolicy
     }
 
     /**
-     * Menentukan apakah seorang user (PJ) dapat mengelola (edit, update, destroy)
+     * Menentukan apakah seorang user (PJ) dapat mengelola (edit, update, destroy, absensi)
      * sebuah kegiatan.
      *
      * @param  \App\Models\User  $user  User yang sedang login
@@ -33,9 +32,12 @@ class KegiatanPolicy
     {
         // Pengecekan hanya untuk PJ
         if ($user->hasRole('pj')) {
-            // User boleh mengelola kegiatan JIKA ID devisi yang dia pimpin
-            // sama dengan ID devisi pemilik kegiatan tersebut.
-            return $user->devisiYangDipimpin?->id === $kegiatan->devisi_id;
+            // PERBAIKAN LOGIKA:
+            // PJ boleh mengelola jika:
+            // 1. Kegiatan tersebut adalah milik devisinya.
+            // ATAU
+            // 2. Kegiatan tersebut adalah kegiatan umum (devisi_id nya null).
+            return $user->devisiYangDipimpin?->id === $kegiatan->devisi_id || is_null($kegiatan->devisi_id);
         }
 
         // Jika bukan admin atau PJ, secara default tidak boleh.

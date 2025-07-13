@@ -28,6 +28,14 @@
                 <div class="card h-100 shadow-sm border-0">
                     <div class="card-body d-flex flex-column">
                         <h5 class="card-title">{{ $kegiatan->judul }}</h5>
+                        <div class="card-subtitle mb-2">
+                            {{-- Menampilkan badge sesuai jenis kegiatan --}}
+                            @if ($kegiatan->devisi_id === null)
+                                <span class="badge bg-success">Kegiatan Umum</span>
+                            @else
+                                <span class="badge bg-primary">Kegiatan Devisi</span>
+                            @endif
+                        </div>
                         <p class="card-text text-muted small flex-grow-1">{{ Str::limit($kegiatan->deskripsi, 120) }}</p>
                         <div class="mt-3">
                             <p class="mb-1 small"><i class="bi bi-calendar-week-fill me-2 text-primary"></i>{{ $kegiatan->waktu_mulai->isoFormat('dddd, D MMMM YYYY') }}</p>
@@ -36,7 +44,11 @@
                         </div>
                     </div>
                     <div class="card-footer bg-light d-flex justify-content-between gap-2">
+                        {{-- Tombol Absensi selalu muncul --}}
                         <a href="{{ route('pj.absensi.show', $kegiatan->id) }}" class="btn btn-sm btn-info text-white flex-fill"><i class="bi bi-clipboard2-check-fill"></i> Absensi</a>
+                        
+                        {{-- PERBAIKAN LOGIKA: Tombol Edit & Hapus hanya muncul jika kegiatan ini milik devisi PJ --}}
+                        @if($kegiatan->devisi_id === $devisi->id)
                         <div class="btn-group">
                             <a href="{{ route('pj.kegiatan.edit', $kegiatan->id) }}" class="btn btn-sm btn-outline-warning" title="Edit"><i class="bi bi-pencil-fill"></i></a>
                             <form action="{{ route('pj.kegiatan.destroy', $kegiatan->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus kegiatan ini?');">
@@ -45,6 +57,7 @@
                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash-fill"></i></button>
                             </form>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -52,8 +65,8 @@
             <div class="col-12">
                 <div class="text-center text-muted py-5 bg-light rounded">
                     <i class="bi bi-calendar-x fs-1"></i>
-                    <h5 class="mt-3">Devisi Anda belum memiliki kegiatan.</h5>
-                    <p>Klik tombol "Buat Kegiatan Baru" untuk memulai.</p>
+                    <h5 class="mt-3">Belum ada kegiatan yang bisa diakses.</h5>
+                    <p>Kegiatan dari devisi Anda atau kegiatan umum akan muncul di sini.</p>
                 </div>
             </div>
         @endforelse

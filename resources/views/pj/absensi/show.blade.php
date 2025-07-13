@@ -7,13 +7,14 @@
     {{-- Notifikasi --}}
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {{ session('success') }}
+            <i class="bi bi-check-circle-fill me-2"></i>{{ session('success') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
     @if ($errors->any())
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <ul class="mb-0">
+            <strong><i class="bi bi-exclamation-triangle-fill me-2"></i>Error!</strong>
+            <ul class="mb-0 mt-2">
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
@@ -33,16 +34,16 @@
         </div>
         <a href="{{ route('pj.kegiatan.index') }}" class="btn btn-secondary">
             <i class="bi bi-arrow-left me-1"></i>
-            Kembali ke Manajemen Kegiatan
+            Kembali ke Kegiatan
         </a>
     </div>
 
     <div class="row g-4">
+        {{-- Kolom Kiri: Laporan Kehadiran --}}
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Laporan Kehadiran</h5>
-                    {{-- --- TOMBOL BARU --- --}}
                     <form action="{{ route('pj.absensi.close', $kegiatan->id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menutup sesi ini? Semua anggota yang belum hadir akan ditandai sebagai ALPA. Aksi ini tidak bisa dibatalkan.');">
                         @csrf
                         <button type="submit" class="btn btn-danger btn-sm">
@@ -75,7 +76,6 @@
                                             <span class="badge bg-warning text-dark">Izin</span>
                                         @elseif($absen->status == 'sakit')
                                             <span class="badge bg-info text-dark">Sakit</span>
-                                        {{-- --- PERUBAHAN DI SINI --- --}}
                                         @elseif($absen->status == 'alpa')
                                             <span class="badge bg-secondary">Alpa</span>
                                         @endif
@@ -102,6 +102,7 @@
             </div>
         </div>
 
+        {{-- Kolom Kanan: Aksi Cepat --}}
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-light">
@@ -158,9 +159,11 @@
                             <label for="keterangan" class="form-label">Keterangan (Opsional)</label>
                             <textarea name="keterangan" id="keterangan" class="form-control" rows="2" placeholder="Contoh: Izin karena acara keluarga"></textarea>
                         </div>
-                        <button type="submit" class="btn btn-success w-100">
-                            <i class="bi bi-check-circle-fill me-2"></i>Simpan Kehadiran
-                        </button>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-circle-fill me-2"></i>Simpan Kehadiran
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>
