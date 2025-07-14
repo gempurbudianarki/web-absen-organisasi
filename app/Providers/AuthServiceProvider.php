@@ -5,7 +5,9 @@ namespace App\Providers;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use App\Models\Kegiatan;
+use App\Models\Pengumuman; // <-- Tambahkan ini
 use App\Policies\KegiatanPolicy;
+use App\Policies\PengumumanPolicy; // <-- Tambahkan ini
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -15,8 +17,8 @@ class AuthServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     protected $policies = [
-        // Daftarkan policy kita di sini
         Kegiatan::class => KegiatanPolicy::class,
+        Pengumuman::class => PengumumanPolicy::class, // <-- Tambahkan baris ini
     ];
 
     /**

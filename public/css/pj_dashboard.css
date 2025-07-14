@@ -1,0 +1,103 @@
+/* =================================================================
+   PJ DASHBOARD CUSTOM STYLES
+   ================================================================= */
+
+/* Banner Utama */
+.welcome-banner-pj {
+    background: linear-gradient(135deg, #0C342C 0%, #1a4f43 100%);
+    border-radius: 1rem;
+    color: white;
+    position: relative;
+    overflow: hidden;
+    padding: 2.5rem;
+}
+
+/* Corak Islami Subtil untuk Banner */
+.welcome-banner-pj::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');
+    background-size: auto;
+    opacity: 0.05;
+    z-index: 1;
+}
+
+.welcome-banner-pj .content {
+    position: relative;
+    z-index: 2;
+}
+
+.welcome-banner-pj .display-5 {
+    font-weight: 700;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.welcome-banner-pj .lead {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Kartu Statistik Premium */
+.stat-card-pj {
+    background-color: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: .75rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    padding: 1.25rem;
+}
+
+.stat-card-pj:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.1)!important;
+}
+
+.stat-card-pj .stat-title {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.stat-card-pj .stat-number {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: #212529;
+}
+
+.stat-card-pj .stat-icon {
+    font-size: 1.75rem;
+    padding: 1rem;
+    border-radius: 50%;
+    color: #fff;
+    background-color: var(--icon-bg-color, #f8f9fa);
+}
+
+/* Kartu Daftar & Grafik */
+.section-card {
+    border-radius: .75rem;
+    border: 1px solid #e9ecef;
+}
+
+.section-card .card-header {
+    background-color: #fff;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.kegiatan-list-item-pj {
+    border: 0;
+    border-bottom: 1px solid #f1f1f1;
+    transition: background-color 0.2s ease, border-left 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.kegiatan-list-item-pj:last-child {
+    border-bottom: none;
+}
+
+.kegiatan-list-item-pj:hover {
+    background-color: #f8f9fa;
+    border-left-color: #0d6efd;
+}

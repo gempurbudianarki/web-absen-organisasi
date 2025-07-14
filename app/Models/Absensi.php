@@ -23,6 +23,15 @@ class Absensi extends Model
     ];
 
     /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'waktu_absen' => 'datetime', // <-- PERBAIKAN KRUSIAL ADA DI SINI
+    ];
+
+    /**
      * Mendefinisikan relasi bahwa Absensi ini milik seorang User.
      */
     public function user()

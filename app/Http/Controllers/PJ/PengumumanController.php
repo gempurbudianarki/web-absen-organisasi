@@ -3,17 +3,16 @@
 namespace App\Http\Controllers\PJ;
 
 use App\Http\Controllers\Controller;
-use App\Models\Devisi; // Import model Devisi
+use App\Models\Devisi;
 use App\Models\Pengumuman;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class PengumumanController extends Controller
 {
     /**
      * Helper untuk mendapatkan devisi yang dipimpin oleh PJ yang sedang login.
-     *
-     * @return Devisi
      */
     private function getPjDevisi(): Devisi
     {
@@ -26,26 +25,24 @@ class PengumumanController extends Controller
 
     /**
      * Menampilkan daftar pengumuman untuk devisi yang dipimpin PJ.
-     *
-     * @return \Illuminate\View\View
      */
     public function index()
     {
         $devisi = $this->getPjDevisi();
 
-        $pengumumans = Pengumuman::where('devisi_id', $devisi->id)
-                                 ->with('user') // Eager load pembuat pengumuman
-                                 ->latest()
-                                 ->paginate(10);
+        $baseQuery = Pengumuman::where(function ($query) use ($devisi) {
+            $query->where('devisi_id', $devisi->id)
+                  ->orWhereNull('devisi_id');
+        })->with('user')->latest();
+
+        $pengumumanAktif = (clone $baseQuery)->aktif()->paginate(5, ['*'], 'aktif');
+        $pengumumanRiwayat = (clone $baseQuery)->riwayat()->paginate(10, ['*'], 'riwayat');
         
-        return view('pj.pengumuman.index', compact('pengumumans', 'devisi'));
+        return view('pj.pengumuman.index', compact('pengumumanAktif', 'pengumumanRiwayat', 'devisi'));
     }
 
     /**
      * Menyimpan pengumuman baru yang dibuat oleh PJ.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
     {
@@ -54,34 +51,31 @@ class PengumumanController extends Controller
         $validated = $request->validate([
             'judul' => 'required|string|max:255',
             'isi' => 'required|string',
+            'publish_at' => 'required|date',
+            'expires_at' => 'nullable|date|after_or_equal:publish_at',
         ]);
 
         Pengumuman::create([
             'judul' => $validated['judul'],
             'isi' => $validated['isi'],
-            'devisi_id' => $devisi->id, // Otomatis set devisi_id sesuai devisi PJ
-            'user_id' => Auth::id(),    // Set user_id dari PJ yang sedang login
-            'waktu_publish' => now(),
+            'devisi_id' => $devisi->id,
+            'user_id' => Auth::id(),
+            'target' => 'devisi',
+            'publish_at' => Carbon::parse($validated['publish_at']),
+            'expires_at' => $validated['expires_at'] ? Carbon::parse($validated['expires_at']) : null,
         ]);
 
         return redirect()->route('pj.pengumuman.index')
-                         ->with('success', 'Pengumuman berhasil dipublikasikan untuk devisi Anda!');
+                         ->with('success', 'Pengumuman berhasil dipublikasikan untuk devisimu!');
     }
 
     /**
      * Menghapus pengumuman.
-     *
-     * @param  \App\Models\Pengumuman  $pengumuman
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(Pengumuman $pengumuman)
     {
-        $devisi = $this->getPjDevisi();
-
-        // Otorisasi: Pastikan PJ hanya bisa hapus pengumuman dari devisinya sendiri.
-        if ($pengumuman->devisi_id !== $devisi->id) {
-            abort(403, 'AKSI TIDAK DIIZINKAN.');
-        }
+        // Terapkan Policy 'delete' di sini.
+        $this->authorize('delete', $pengumuman);
         
         $namaPengumuman = $pengumuman->judul;
         $pengumuman->delete();

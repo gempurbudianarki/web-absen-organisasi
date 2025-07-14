@@ -4,7 +4,7 @@ namespace App\Http\Controllers\PJ;
 
 use App\Http\Controllers\Controller;
 use App\Models\Kegiatan;
-use App\Models\Devisi;
+use App\Models\Devisi; // Meskipun tidak digunakan langsung, baik untuk referensi
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -15,50 +15,38 @@ class KegiatanController extends Controller
     /**
      * Helper untuk mendapatkan devisi yang dipimpin oleh PJ yang sedang login.
      *
-     * @return Devisi
+     * @return \App\Models\Devisi
      */
     private function getPjDevisi(): Devisi
     {
         $devisi = Auth::user()->devisiYangDipimpin;
         if (!$devisi) {
-            // Abort jika user bukan PJ dari devisi manapun.
-            abort(403, 'AKSI TIDAK DIIZINKAN: ANDA BUKAN PENANGGUNG JAWAB DIVISI.');
+            abort(403, 'AKSI TIDAK DIIZINKAN: ANDA BUKAN PENANGGUNG JAWAB DEVISI.');
         }
         return $devisi;
     }
 
     /**
      * Menampilkan halaman manajemen kegiatan untuk devisi PJ.
+     * Sekarang juga menampilkan kegiatan umum.
      *
      * @return \Illuminate\View\View
      */
     public function index()
     {
         $devisi = $this->getPjDevisi();
-        $kegiatans = Kegiatan::where('devisi_id', $devisi->id)->latest()->paginate(10);
+        
+        // PERBAIKAN LOGIKA: Ambil kegiatan dari devisi PJ DAN kegiatan umum (devisi_id is null)
+        $kegiatans = Kegiatan::where('devisi_id', $devisi->id)
+                                ->orWhereNull('devisi_id')
+                                ->latest()
+                                ->paginate(9); // Dibuat 9 agar grid 3x3 terlihat bagus
         
         return view('pj.kegiatan.index', compact('kegiatans', 'devisi'));
     }
-    
-    /**
-     * Menampilkan dashboard khusus untuk PJ.
-     *
-     * @return \Illuminate\View\View
-     */
-    public function dashboard()
-    {
-        $devisi = $this->getPjDevisi();
-        $anggotaCount = $devisi->anggota()->count();
-        $kegiatanCount = $devisi->kegiatan()->count();
-        
-        // Ambil 5 kegiatan terbaru dari devisi tersebut
-        $kegiatans = $devisi->kegiatan()->latest()->take(5)->get();
-
-        return view('pj.dashboard', compact('devisi', 'anggotaCount', 'kegiatanCount', 'kegiatans'));
-    }
 
     /**
-     * Show the form for creating a new resource.
+     * Menampilkan form untuk membuat kegiatan baru.
      *
      * @return \Illuminate\View\View
      */
@@ -69,7 +57,7 @@ class KegiatanController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Menyimpan kegiatan baru ke database.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
@@ -88,7 +76,6 @@ class KegiatanController extends Controller
         ]);
 
         if ($request->hasFile('poster')) {
-            // PERBAIKAN: Simpan path relatif, bukan URL.
             $path = $request->file('poster')->store('kegiatan-posters', 'public');
             $validatedData['poster'] = $path;
         }
@@ -102,7 +89,7 @@ class KegiatanController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Menampilkan form untuk mengedit kegiatan.
      *
      * @param  \App\Models\Kegiatan  $kegiatan
      * @return \Illuminate\View\View
@@ -116,7 +103,7 @@ class KegiatanController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Mengupdate data kegiatan di database.
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  \App\Models\Kegiatan  $kegiatan
@@ -151,7 +138,7 @@ class KegiatanController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Menghapus kegiatan dari database.
      *
      * @param  \App\Models\Kegiatan  $kegiatan
      * @return \Illuminate\Http\RedirectResponse
